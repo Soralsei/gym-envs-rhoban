@@ -1,16 +1,17 @@
 [build-system]
-requires = ["hatchling", "  "]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
 name = "gym_envs_rhoban"
-version = "0.0.1"
+version = "0.0.3"
 authors = [
     { name = "Kohio DEFLESSELLE", email = "kohio.deflesselle@u-bordeaux.fr" },
 ]
 description = "Gymnasium environments"
 readme = "README.md"
 requires-python = ">=3.8"
+dependencies = ["gymnasium", "pybullet", "numpy<2.0"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",

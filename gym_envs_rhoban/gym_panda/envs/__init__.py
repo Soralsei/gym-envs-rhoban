@@ -1,3 +1,3 @@
-from gym_envs.gym_panda.envs.panda_reach_env import SimplePandaReachEnv
-from gym_envs.gym_panda.envs.panda_joint_reach_env import JointPandaReachEnv
+from gym_envs_rhoban.gym_panda.envs.panda_reach_env import SimplePandaReachEnv
+from gym_envs_rhoban.gym_panda.envs.panda_joint_reach_env import JointPandaReachEnv
 

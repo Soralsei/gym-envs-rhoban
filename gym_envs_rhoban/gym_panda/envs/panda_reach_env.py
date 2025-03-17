@@ -7,7 +7,7 @@ import numpy as np
 import pybullet as p
 import pybullet_data as pd
 
-from gym_envs import get_urdf_path
+from gym_envs_rhoban import get_urdf_path
 
 
 class GoalSpaceSize(IntEnum):
