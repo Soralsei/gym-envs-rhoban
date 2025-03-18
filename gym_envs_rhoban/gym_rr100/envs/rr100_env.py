@@ -244,11 +244,7 @@ class RR100ReachEnv(gym.Env):
             self.action_space.seed(seed)
 
         # set panda joints to initial positions
-        self.set_rr100_initial_joints_positions()
-        p.resetBasePositionAndOrientation(
-            self.robot_id, [0, 0, 0], self.start_orientation
-        )
-        p.stepSimulation()
+        self.reset_robot()
 
         goal_space = self.goal_spaces[self.goal_space_size]
         self.goal = self._sample_goal(goal_space)
@@ -526,6 +522,13 @@ class RR100ReachEnv(gym.Env):
 
         for id, position in zip(indices, initial_positions.values()):
             p.resetJointState(self.robot_id, id, position)
+
+    def reset_robot(self):
+        self.set_rr100_initial_joints_positions()
+        p.resetBasePositionAndOrientation(
+            self.robot_id, [0, 0, 0], self.start_orientation
+        )
+        p.stepSimulation()
 
     def set_gym_spaces_rr100(self):
         """# Min/Max Z
