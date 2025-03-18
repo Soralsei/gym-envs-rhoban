@@ -25,16 +25,17 @@ class FastRLapWrapper(Wrapper):
         return observation, reward, terminated, truncated | timeout, info
 
     def reward(self):
-        goal_to_robot = self.env.unwrapped.robot_position - self.env.unwrapped.goal
-        distance_to_goal = np.linalg.norm(goal_to_robot)
+        # goal_to_robot = self.env.unwrapped.robot_position - self.env.unwrapped.goal
+        # distance_to_goal = np.linalg.norm(goal_to_robot)
         
         vector_to_goal = self.env.unwrapped.goal - self.env.unwrapped.robot_position
+        distance_to_goal = np.linalg.norm(vector_to_goal)
         
         normalized_vector = vector_to_goal / (distance_to_goal + 1e-6)
         distance_threshold = self.env.unwrapped.distance_threshold
 
-        velocity_to_goal = np.sum(self.env.unwrapped.robot_velocity * normalized_vector)
-        # velocity_to_goal = np.dot(self.env.unwrapped.robot_velocity, normalized_vector)
+        # velocity_to_goal = np.sum(self.env.unwrapped.robot_velocity * normalized_vector)
+        velocity_to_goal = np.dot(self.env.unwrapped.robot_velocity, normalized_vector)
 
         should_timeout = self.should_timeout
         
