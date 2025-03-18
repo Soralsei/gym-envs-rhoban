@@ -1,14 +1,7 @@
-import math
-import warnings as w
-
 import numpy as np
-import pybullet as p
 
-from typing import SupportsFloat, TypeVar, Union
+from typing import SupportsFloat
 from gymnasium import RewardWrapper
-
-ActType = TypeVar("ActType")
-ObsType = TypeVar("ObsType")
 
 
 class SquareAngleRewardWrapper(RewardWrapper):
