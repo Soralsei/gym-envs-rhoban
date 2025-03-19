@@ -627,7 +627,6 @@ class RR100ReachGoalEnv(GoalEnv):
         )
 
         obs = self._get_obs()
-        print(obs)
         obs_spaces = {
             "observation": spaces.Box(
                 np.finfo(np.float32).min,
