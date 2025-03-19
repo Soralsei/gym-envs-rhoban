@@ -4,7 +4,7 @@ import numpy as np
 from gymnasium import Wrapper
 
 
-class OldFastRLapRewardWrapper(Wrapper):
+class OldFastRLapWrapper(Wrapper):
 
     def __init__(self, env):
         super().__init__(env)
