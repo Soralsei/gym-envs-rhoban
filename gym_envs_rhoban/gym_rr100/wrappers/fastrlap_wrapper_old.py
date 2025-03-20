@@ -36,8 +36,6 @@ class OldFastRLapWrapper(Wrapper):
         distance_threshold = self.env.unwrapped.distance_threshold
         should_timeout = self.should_timeout
 
-        # print(should_timeout)
-
         # print(distance_to_goal < distance_threshold)
 
         reward = (

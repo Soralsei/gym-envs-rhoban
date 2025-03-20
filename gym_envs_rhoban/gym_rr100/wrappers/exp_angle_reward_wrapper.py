@@ -4,11 +4,12 @@ from typing import SupportsFloat
 from gymnasium import RewardWrapper
 
 
-class SquareAngleRewardWrapper(RewardWrapper):
+class ExponentialAngleRewardWrapper(RewardWrapper):
 
-    def __init__(self, env):
+    def __init__(self, env, theta_coeff: float=1.0):
         super().__init__(env)
-        print(f"Wrapping env with an SquareAngleRewardWrapper")
+        self.theta_coeff = theta_coeff = theta_coeff
+        print(f"Wrapping env with an {self.class_name()}")
 
     def reward(self, reward: SupportsFloat) -> SupportsFloat:
         goal_robot_frame = self.env.unwrapped.goal_robot_frame
