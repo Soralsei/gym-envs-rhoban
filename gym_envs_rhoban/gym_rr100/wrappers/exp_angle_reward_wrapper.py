@@ -15,4 +15,4 @@ class ExponentialAngleRewardWrapper(RewardWrapper):
         goal_robot_frame = self.env.unwrapped.goal_robot_frame
         theta = np.arctan2(goal_robot_frame[1], goal_robot_frame[0])
 
-        return np.exp(reward) + np.exp(-(theta ** 2))
+        return np.exp(reward) + self.theta_coeff * np.exp(-(theta ** 2))
