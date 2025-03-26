@@ -32,6 +32,8 @@ class RR100ReachEnv(gym.Env):
         "rear_left_steering_joint",
         "rear_right_steering_joint",
     ]
+    
+    M_PI_2 = np.pi / 2
 
     def __init__(
         self,
@@ -41,6 +43,10 @@ class RR100ReachEnv(gym.Env):
         robot_action_frequency: int = 40,
         wheel_acceleration_limit: float = 2 * np.pi,
         steering_acceleration_limit: float = np.pi / 6,
+        linear_velocity_limit: float = 2.5,
+        linear_acceleration_limit: float = 2.5,
+        angular_velocity_limit: float = 1.0,
+        angular_acceleration_limit: float = 3.0,
         error_bias: Iterable[float] = np.array([1.0, 1.0]),
         delta_weight: float = 1.0,
     ):
@@ -67,6 +73,24 @@ class RR100ReachEnv(gym.Env):
 
         self.wheel_acceleration_limit = wheel_acceleration_limit
         self.steering_acceleration_limit = steering_acceleration_limit
+
+        self.linear_velocity_limit = linear_velocity_limit
+        self.angular_velocity_limit = angular_velocity_limit
+        self.robot_velocity_limits = np.array(
+            [self.linear_velocity_limit, self.angular_velocity_limit]
+        )
+
+        self.linear_acceleration_limit = linear_acceleration_limit
+        self.angular_acceleration_limit = angular_acceleration_limit
+        self.robot_acceleration_limits = np.array(
+            [self.linear_acceleration_limit, self.angular_acceleration_limit]
+        )
+
+        # TEMPORARY, should probably read from URDF or pass as argument
+        self.steering_track = 0.6
+        self.wheel_base = 0.5
+        self.wheel_radius = 0.21
+
         self.rr_acceleration_limits = np.array(
             [self.wheel_acceleration_limit, self.steering_acceleration_limit]
         )
@@ -89,9 +113,9 @@ class RR100ReachEnv(gym.Env):
         p.connect(
             simulation_type
         )  # or p.GUI (for test) or p.DIRECT (for train) for non-graphical version
-        
+
         p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)
-        
+
         self.if_render = False
         self.render_mode = render_mode
 
@@ -286,18 +310,69 @@ class RR100ReachEnv(gym.Env):
         assert action.shape == (self.n_actions,), "Action shape error"
 
         clipped_action_rr100 = np.clip(
-            action * self.rr100_velocity_steering_limits,
-            -self.rr100_velocity_steering_limits,
-            self.rr100_velocity_steering_limits,
+            action * self.robot_velocity_limits,
+            -self.robot_velocity_limits,
+            self.robot_velocity_limits,
         )
-        smoothed_action = self.post_process_action(
+        print(clipped_action_rr100)
+        smoothed_action = self.limit_action(
             clipped_action_rr100,
             self.previous_action,
-            self.rr_acceleration_limits,
+            self.robot_acceleration_limits,
             self.action_dt,
         )
+        print(smoothed_action)
+        
+        vel_left_front = 0
+        vel_right_front = 0
+        vel_left_rear = 0
+        vel_right_rear = 0
 
-        velocities = [smoothed_action[0]] * len(self.wheel_joint_ids)
+        sign = np.sign(smoothed_action[0])
+        vel_left_front = sign * np.hypot(
+            smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
+            (self.wheel_base * smoothed_action[1] / 2.0) / self.wheel_radius,
+        )
+        vel_right_front = sign * np.hypot(
+            smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
+            (self.wheel_base * smoothed_action[1] / 2.0) / self.wheel_radius,
+        )
+        vel_left_rear = sign * np.hypot(
+            smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
+            (self.wheel_base * smoothed_action[1] / 2.0) / self.wheel_radius,
+        )
+        vel_right_rear = sign * np.hypot(
+            smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
+            (self.wheel_base * smoothed_action[1] / 2.0) / self.wheel_radius,
+        )
+        
+        front_left_steering = 0
+        front_right_steering = 0
+        rear_left_steering = 0
+        rear_right_steering = 0
+
+        if abs(2.0 * smoothed_action[0]) > abs(
+            smoothed_action[1] * self.steering_track
+        ):
+            front_left_steering = np.arctan(
+                smoothed_action[1]
+                * self.wheel_base
+                / (2.0 * smoothed_action[0] - smoothed_action[1] * self.steering_track)
+            )
+            front_right_steering = np.arctan(
+                smoothed_action[1]
+                * self.wheel_base
+                / (2.0 * smoothed_action[0] + smoothed_action[1] * self.steering_track)
+            )
+        elif abs(smoothed_action[0] > 1e-3):
+            sign = np.sign(smoothed_action[1])
+            front_left_steering = sign * RR100ReachEnv.M_PI_2
+            front_right_steering = sign * RR100ReachEnv.M_PI_2
+            
+        rear_left_steering = -front_left_steering
+        rear_right_steering = -front_right_steering
+
+        velocities = [vel_left_front, vel_right_front, vel_left_rear, vel_right_rear]
         p.setJointMotorControlArray(
             self.robot_id,
             self.wheel_joint_ids,
@@ -306,10 +381,7 @@ class RR100ReachEnv(gym.Env):
             forces=[10, 10, 10, 10],
         )
 
-        signs = np.array(
-            [1 if "front" in name else -1 for name in RR100ReachEnv.RR_POSITION_JOINTS]
-        )
-        positions = signs * smoothed_action[1]
+        positions = [front_left_steering, front_right_steering, rear_left_steering, rear_right_steering]
         p.setJointMotorControlArray(
             self.robot_id,
             self.steering_joint_ids,
@@ -319,11 +391,9 @@ class RR100ReachEnv(gym.Env):
         )
 
         self.previous_action = smoothed_action
-        # print("Applied action : ", self.previous_action)
+        print("Applied action : ", velocities + positions)
 
-    def post_process_action(
-        self, action, prev_action, max_acceleration, dt
-    ) -> np.ndarray:
+    def limit_action(self, action, prev_action, max_acceleration, dt) -> np.ndarray:
         """
         Limite la variation entre current_cmd et previous_cmd.
         :param current_cmd: Commande souhaitée actuelle (par exemple, vitesse ou angle).
@@ -601,6 +671,7 @@ class RR100ReachEnv(gym.Env):
             # shape=(num_wheels + num_joints_steering * 2 + 3 + 3 + 3 + 3 + 3,),
             dtype=np.float32,
         )
+        print("Observation space : ", self.observation_space)
 
     def debug_gui(self, low, high, color=[0, 0, 1]):
         # low_array = self.pos_space.low
