@@ -314,14 +314,14 @@ class RR100ReachEnv(gym.Env):
             -self.robot_velocity_limits,
             self.robot_velocity_limits,
         )
-        print(clipped_action_rr100)
+        # print(clipped_action_rr100)
         smoothed_action = self.limit_action(
             clipped_action_rr100,
             self.previous_action,
             self.robot_acceleration_limits,
             self.action_dt,
         )
-        print(smoothed_action)
+        # print(smoothed_action)
         
         vel_left_front = 0
         vel_right_front = 0
@@ -391,7 +391,7 @@ class RR100ReachEnv(gym.Env):
         )
 
         self.previous_action = smoothed_action
-        print("Applied action : ", velocities + positions)
+        # print("Applied action : ", velocities + positions)
 
     def limit_action(self, action, prev_action, max_acceleration, dt) -> np.ndarray:
         """
