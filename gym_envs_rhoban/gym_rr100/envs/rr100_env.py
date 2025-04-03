@@ -248,7 +248,7 @@ class RR100ReachEnv(gym.Env):
         obs = self._get_obs()
 
         reward, distance = self.reward()
-        info = self._get_info(reward, distance)
+        info = self._get_info(distance)
 
         terminated = info["is_success"]
         truncated = False
@@ -274,8 +274,8 @@ class RR100ReachEnv(gym.Env):
         self.goal = self._sample_goal(goal_space)
 
         obs = self._get_obs()
-        reward, distance = self.reward()
-        info = self._get_info(reward, distance)
+        _, distance = self.reward()
+        info = self._get_info(distance)
 
         self.total_episodes += 1
 
@@ -457,10 +457,10 @@ class RR100ReachEnv(gym.Env):
 
         return obs
 
-    def _get_info(self, error, distance):
+    def _get_info(self, distance):
         info = {
             "is_success": self._is_success(distance),
-            "distance_error": error,
+            "distance": distance,
         }
         return info
 
