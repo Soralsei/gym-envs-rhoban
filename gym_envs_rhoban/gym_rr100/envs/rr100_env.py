@@ -43,7 +43,7 @@ class RR100ReachEnv(gym.Env):
         robot_action_frequency: int = 40,
         wheel_acceleration_limit: float = 2 * np.pi,
         steering_acceleration_limit: float = np.pi / 6,
-        linear_velocity_limit: float = 2.5,
+        linear_velocity_limit: float = 2.0,
         linear_acceleration_limit: float = 2.5,
         angular_velocity_limit: float = 1.0,
         angular_acceleration_limit: float = 3.0,
