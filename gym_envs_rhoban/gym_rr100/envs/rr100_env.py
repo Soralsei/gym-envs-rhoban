@@ -237,7 +237,7 @@ class RR100ReachEnv(gym.Env):
     # basic methods
     # -------------------------
     def step(self, action):
-        # print(f'Action : {action}')
+        print(f'Action : {action}')
         action = np.clip(action, self.action_space.low, self.action_space.high)
         self._set_action(action)
 
@@ -331,20 +331,22 @@ class RR100ReachEnv(gym.Env):
         sign = np.sign(smoothed_action[0])
         vel_left_front = sign * np.hypot(
             smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
-            (self.wheel_base * smoothed_action[1] / 2.0) / self.wheel_radius,
-        )
+            (self.wheel_base * smoothed_action[1] / 2.0)
+        ) / self.wheel_radius
+
         vel_right_front = sign * np.hypot(
             smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
-            (self.wheel_base * smoothed_action[1] / 2.0) / self.wheel_radius,
-        )
+            (self.wheel_base * smoothed_action[1] / 2.0)
+        ) / self.wheel_radius
+
         vel_left_rear = sign * np.hypot(
             smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
-            (self.wheel_base * smoothed_action[1] / 2.0) / self.wheel_radius,
-        )
+            (self.wheel_base * smoothed_action[1] / 2.0),
+        ) / self.wheel_radius
         vel_right_rear = sign * np.hypot(
             smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
-            (self.wheel_base * smoothed_action[1] / 2.0) / self.wheel_radius,
-        )
+            (self.wheel_base * smoothed_action[1] / 2.0),
+        ) / self.wheel_radius
         
         front_left_steering = 0
         front_right_steering = 0
