@@ -42,7 +42,7 @@ if __name__ == "__main__":
         for lin, ang, freq in actions:
             print(f"Goal : {goals[i]}")
             action = np.array([lin,ang])
-            for _ in range(2 * freq):
+            for _ in range(freq):
                 obs, reward, terminated, truncated, info =  env.step(action)
                 time.sleep(env.unwrapped.action_dt)
             

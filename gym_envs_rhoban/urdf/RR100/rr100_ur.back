@@ -89,11 +89,11 @@
     </joint>
     <link name="front_left_wheel_link">
         <inertial>
-            <mass value="0.1" />
+            <mass value="3.0" />
             <!-- <origin xyz="0 0 0" rpy="${M_PI/2}  0 0" /> -->
             <origin rpy="0  0 0" xyz="0 0 0" />
-            <inertia ixx="4E-4" ixy="0" ixz="0" iyy="4E-4" iyz="0"
-                izz="4E-4" />
+            <inertia ixx="0.035331249999999995" ixy="0" ixz="0" iyy="0.06615" iyz="0"
+                izz="0.035331249999999995" />
         </inertial>
         <!-- <visual>
             <origin rpy="-1.570795  0 0" xyz="0 0 0" />
@@ -159,11 +159,11 @@
             <damping value="30000" />
         </contact> -->
         <inertial>
-            <mass value="0.1" />
+            <mass value="3.0" />
             <!-- <origin xyz="0 0 0" rpy="${M_PI/2}  0 0" />-->
             <origin rpy="0  0 0" xyz="0 0 0" />
-            <inertia ixx="4E-4" ixy="0" ixz="0" iyy="4E-4" iyz="0"
-                izz="4E-4" />
+            <inertia ixx="0.035331249999999995" ixy="0" ixz="0" iyy="0.06615" iyz="0"
+                izz="0.035331249999999995" />
         </inertial>
         <!-- <visual>
             <origin rpy="1.570795  0 0" xyz="0 0 0" />
@@ -228,11 +228,11 @@
             <damping value="30000" />
         </contact> -->
         <inertial>
-            <mass value="0.1" />
+            <mass value="3.0" />
             <!--         <origin xyz="0 0 0" rpy="${M_PI/2}  0 0" /> -->
             <origin rpy="0  0 0" xyz="0 0 0" />
-            <inertia ixx="4E-4" ixy="0" ixz="0" iyy="4E-4" iyz="0"
-                izz="4E-4" />
+            <inertia ixx="0.035331249999999995" ixy="0" ixz="0" iyy="0.06615" iyz="0"
+                izz="0.035331249999999995" />
         </inertial>
         <!-- <visual>
             <origin rpy="-1.570795  0 0" xyz="0 0 0" />
@@ -297,11 +297,11 @@
             <damping value="30000" />
         </contact> -->
         <inertial>
-            <mass value="0.1" />
+            <mass value="3.0" />
             <!--         <origin xyz="0 0 0" rpy="${M_PI/2}  0 0" /> -->
             <origin rpy="0  0 0" xyz="0 0 0" />
-            <inertia ixx="4E-4" ixy="0" ixz="0" iyy="4E-4" iyz="0"
-                izz="4E-4" />
+            <inertia ixx="0.035331249999999995" ixy="0" ixz="0" iyy="0.06615" iyz="0"
+                izz="0.035331249999999995" />
         </inertial>
         <!-- <visual>
             <origin rpy="1.570795  0 0" xyz="0 0 0" />

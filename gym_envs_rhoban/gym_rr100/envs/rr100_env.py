@@ -225,6 +225,8 @@ class RR100ReachEnv(gym.Env):
         # load panda
         self.load_robot()
         p.stepSimulation()
+        state = p.getLinkState(self.robot_id, self.rr100_base_index)
+        self.robot_base_z = state[0][2]
 
         self.set_rr100_initial_joints_positions()
         p.stepSimulation()
@@ -237,7 +239,7 @@ class RR100ReachEnv(gym.Env):
     # basic methods
     # -------------------------
     def step(self, action):
-        print(f'Action : {action}')
+        # print(f'Action : {action}')
         action = np.clip(action, self.action_space.low, self.action_space.high)
         self._set_action(action)
 
@@ -251,7 +253,8 @@ class RR100ReachEnv(gym.Env):
         info = self._get_info(distance)
 
         terminated = info["is_success"]
-        truncated = False
+        state = p.getLinkState(self.robot_id, self.rr100_base_index)
+        truncated = state[0][2] > self.robot_base_z + 0.1
 
         return obs, reward, terminated, truncated, info
 
@@ -267,8 +270,10 @@ class RR100ReachEnv(gym.Env):
                 goal_space.seed(seed)
             self.action_space.seed(seed)
 
-        # set panda joints to initial positions
+        # Reset robot
         self.reset_robot()
+        self.previous_action = np.zeros(self.n_actions)
+        
 
         goal_space = self.goal_spaces[self.goal_space_size]
         self.goal = self._sample_goal(goal_space)
@@ -487,7 +492,7 @@ class RR100ReachEnv(gym.Env):
             basePosition=self.ur_rr100_start_pos,
             baseOrientation=self.ur_rr100_start_orientation,
             useFixedBase=False,
-            flags=p.URDF_USE_IMPLICIT_CYLINDER,
+            flags=p.URDF_USE_INERTIA_FROM_FILE,
         )
 
         self.ur_rr100_num_joints = p.getNumJoints(self.robot_id)  # 26 joints
@@ -527,7 +532,7 @@ class RR100ReachEnv(gym.Env):
                 for joint in RR100ReachEnv.RR_POSITION_JOINTS
             ]
         )
-        # print(p.getDynamicsInfo(self.robot_id, self.wheel_joint_ids[0]))
+        print("Robot dynamics : ", p.getDynamicsInfo(self.robot_id, -1))
 
         for joint in RR100ReachEnv.RR_POSITION_JOINTS:
             p.changeDynamics(
@@ -594,6 +599,13 @@ class RR100ReachEnv(gym.Env):
 
         for id, position in zip(indices, initial_positions.values()):
             p.resetJointState(self.robot_id, id, position)
+        for joint in RR100ReachEnv.RR_VELOCITY_JOINTS:
+            p.resetJointState(
+                self.robot_id,
+                self.robot_joint_info[joint][0],
+                targetValue=0.0,
+                targetVelocity=0.0,
+            )
 
     def reset_robot(self):
         self.set_rr100_initial_joints_positions()

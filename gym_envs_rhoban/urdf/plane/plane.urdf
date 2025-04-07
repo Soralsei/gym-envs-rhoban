@@ -2,9 +2,9 @@
 <robot name="plane">
   <link name="planeLink">
     <contact>
-      <lateral_friction value="1.5" />
-      <rolling_friction value="0.0" />
-      <spinning_friction value="0.1" />
+      <lateral_friction value="1.0" />
+      <rolling_friction value="0.00001" />
+      <spinning_friction value="0.0001" />
     </contact>
     <collision>
       <geometry>
