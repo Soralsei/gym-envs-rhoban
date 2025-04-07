@@ -5,6 +5,8 @@ import numpy as np
 
 import gym_envs_rhoban
 
+import pybullet as p
+
 
 
 if __name__ == "__main__":
@@ -22,28 +24,32 @@ if __name__ == "__main__":
     actions = np.array(
         [
             (1, 0, env.unwrapped.robot_action_frequency),
-            (0, 0, env.unwrapped.robot_action_frequency),
-            (-1, 0, env.unwrapped.robot_action_frequency),
-            (0, 0, env.unwrapped.robot_action_frequency),
             (1, 1, env.unwrapped.robot_action_frequency),
-            (0, 0, env.unwrapped.robot_action_frequency),
-            (-1, 1, env.unwrapped.robot_action_frequency),
-            (0, 0, env.unwrapped.robot_action_frequency),
             (1, -1, env.unwrapped.robot_action_frequency),
-            (0, 0, env.unwrapped.robot_action_frequency),
+            (-1, 0, env.unwrapped.robot_action_frequency),
+            (-1, 1, env.unwrapped.robot_action_frequency),
             (-1, -1, env.unwrapped.robot_action_frequency),
+            # (0, 0, env.unwrapped.robot_action_frequency),
+            # (0, 0, env.unwrapped.robot_action_frequency),
+            # (0, 0, env.unwrapped.robot_action_frequency),
+            # (0, 0, env.unwrapped.robot_action_frequency),
+            # (0, 0, env.unwrapped.robot_action_frequency),
         ]
     )
     
-    for i in range(1, len(goals)):
+    for lin, ang, freq in actions:
+    # for i in range(1, len(goals)):
         env.reset()
-        env.unwrapped.goal = goals[i]
+        # env.unwrapped.goal = goals[i]
         
-        for lin, ang, freq in actions:
-            print(f"Goal : {goals[i]}")
-            action = np.array([lin,ang])
-            for _ in range(freq):
-                obs, reward, terminated, truncated, info =  env.step(action)
-                time.sleep(env.unwrapped.action_dt)
+        # for lin, ang, freq in actions:
+        # print(f"Goal : {goals[i]}")
+        action = np.array([lin,ang])
+        for _ in range(freq):
+            obs, reward, terminated, truncated, info =  env.step(action)
+            time.sleep(env.unwrapped.action_dt)
+
+        print(p.getLinkState(env.unwrapped.robot_id, 0))
+        input("Press enter to continues...")
             
     

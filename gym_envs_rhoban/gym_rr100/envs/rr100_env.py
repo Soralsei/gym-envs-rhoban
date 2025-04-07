@@ -32,7 +32,7 @@ class RR100ReachEnv(gym.Env):
         "rear_left_steering_joint",
         "rear_right_steering_joint",
     ]
-    
+
     M_PI_2 = np.pi / 2
 
     def __init__(
@@ -273,7 +273,6 @@ class RR100ReachEnv(gym.Env):
         # Reset robot
         self.reset_robot()
         self.previous_action = np.zeros(self.n_actions)
-        
 
         goal_space = self.goal_spaces[self.goal_space_size]
         self.goal = self._sample_goal(goal_space)
@@ -327,32 +326,48 @@ class RR100ReachEnv(gym.Env):
             self.action_dt,
         )
         # print(smoothed_action)
-        
+
         vel_left_front = 0
         vel_right_front = 0
         vel_left_rear = 0
         vel_right_rear = 0
 
         sign = np.sign(smoothed_action[0])
-        vel_left_front = sign * np.hypot(
-            smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
-            (self.wheel_base * smoothed_action[1] / 2.0)
-        ) / self.wheel_radius
+        vel_left_front = (
+            sign
+            * np.hypot(
+                smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
+                (self.wheel_base * smoothed_action[1] / 2.0),
+            )
+            / self.wheel_radius
+        )
 
-        vel_right_front = sign * np.hypot(
-            smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
-            (self.wheel_base * smoothed_action[1] / 2.0)
-        ) / self.wheel_radius
+        vel_right_front = (
+            sign
+            * np.hypot(
+                smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
+                (self.wheel_base * smoothed_action[1] / 2.0),
+            )
+            / self.wheel_radius
+        )
 
-        vel_left_rear = sign * np.hypot(
-            smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
-            (self.wheel_base * smoothed_action[1] / 2.0),
-        ) / self.wheel_radius
-        vel_right_rear = sign * np.hypot(
-            smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
-            (self.wheel_base * smoothed_action[1] / 2.0),
-        ) / self.wheel_radius
-        
+        vel_left_rear = (
+            sign
+            * np.hypot(
+                smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
+                (self.wheel_base * smoothed_action[1] / 2.0),
+            )
+            / self.wheel_radius
+        )
+        vel_right_rear = (
+            sign
+            * np.hypot(
+                smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
+                (self.wheel_base * smoothed_action[1] / 2.0),
+            )
+            / self.wheel_radius
+        )
+
         front_left_steering = 0
         front_right_steering = 0
         rear_left_steering = 0
@@ -375,20 +390,27 @@ class RR100ReachEnv(gym.Env):
             sign = np.sign(smoothed_action[1])
             front_left_steering = sign * RR100ReachEnv.M_PI_2
             front_right_steering = sign * RR100ReachEnv.M_PI_2
-            
+
         rear_left_steering = -front_left_steering
         rear_right_steering = -front_right_steering
 
         velocities = [vel_left_front, vel_right_front, vel_left_rear, vel_right_rear]
+        # print(f"Wheel velocities : {velocities}")
         p.setJointMotorControlArray(
             self.robot_id,
             self.wheel_joint_ids,
             p.VELOCITY_CONTROL,
             targetVelocities=velocities,
-            forces=[10, 10, 10, 10],
+            forces=[20, 20, 20, 20],
         )
 
-        positions = [front_left_steering, front_right_steering, rear_left_steering, rear_right_steering]
+        positions = [
+            front_left_steering,
+            front_right_steering,
+            rear_left_steering,
+            rear_right_steering,
+        ]
+        # print(f"Wheel positions : {positions}")
         p.setJointMotorControlArray(
             self.robot_id,
             self.steering_joint_ids,
@@ -492,7 +514,7 @@ class RR100ReachEnv(gym.Env):
             basePosition=self.ur_rr100_start_pos,
             baseOrientation=self.ur_rr100_start_orientation,
             useFixedBase=False,
-            flags=p.URDF_USE_INERTIA_FROM_FILE,
+            flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_USE_IMPLICIT_CYLINDER,
         )
 
         self.ur_rr100_num_joints = p.getNumJoints(self.robot_id)  # 26 joints
@@ -534,12 +556,17 @@ class RR100ReachEnv(gym.Env):
         )
         print("Robot dynamics : ", p.getDynamicsInfo(self.robot_id, -1))
 
-        for joint in RR100ReachEnv.RR_POSITION_JOINTS:
-            p.changeDynamics(
-                self.robot_id,
-                self.robot_joint_info[joint][0],
-                maxJointVelocity=self.robot_joint_info[joint][11 - 1],
-            )
+        # for joint in RR100ReachEnv.RR_VELOCITY_JOINTS:
+        #     joint_info = p.getJointInfo(self.robot_id, self.robot_joint_info[joint][0])
+        #     print(f"Wheel info : {joint_info}")
+        # for joint in RR100ReachEnv.RR_POSITION_JOINTS:
+        #     joint_info = p.getJointInfo(self.robot_id, self.robot_joint_info[joint][0])
+        #     print(f"Wheel info : {joint_info}")
+            # p.changeDynamics(
+            #     self.robot_id,
+            #     self.robot_joint_info[joint][0],
+            #     maxJointVelocity=self.robot_joint_info[joint][11 - 1],
+            # )
 
     def load_walls(self, min_x, max_x, min_y, max_y):
         path = os.path.join(
