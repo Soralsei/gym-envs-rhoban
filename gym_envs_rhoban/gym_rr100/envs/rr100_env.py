@@ -43,9 +43,9 @@ class RR100ReachEnv(gym.Env):
         robot_action_frequency: int = 40,
         wheel_acceleration_limit: float = 2 * np.pi,
         steering_acceleration_limit: float = np.pi / 6,
-        linear_velocity_limit: float = 2.5,
-        linear_acceleration_limit: float = 2.5,
-        angular_velocity_limit: float = 1.0,
+        linear_velocity_limit: float = 0.525,
+        linear_acceleration_limit: float = 0.525,
+        angular_velocity_limit: float = 0.21,
         angular_acceleration_limit: float = 3.0,
         error_bias: Iterable[float] = np.array([1.0, 1.0]),
         delta_weight: float = 1.0,
@@ -331,20 +331,20 @@ class RR100ReachEnv(gym.Env):
         sign = np.sign(smoothed_action[0])
         vel_left_front = sign * np.hypot(
             smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
-            (self.wheel_base * smoothed_action[1] / 2.0) / self.wheel_radius,
-        )
+            (self.wheel_base * smoothed_action[1] / 2.0)
+        ) / self.wheel_radius
         vel_right_front = sign * np.hypot(
             smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
-            (self.wheel_base * smoothed_action[1] / 2.0) / self.wheel_radius,
-        )
+            (self.wheel_base * smoothed_action[1] / 2.0)
+        ) / self.wheel_radius
         vel_left_rear = sign * np.hypot(
             smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
-            (self.wheel_base * smoothed_action[1] / 2.0) / self.wheel_radius,
-        )
+            (self.wheel_base * smoothed_action[1] / 2.0)
+        ) / self.wheel_radius
         vel_right_rear = sign * np.hypot(
             smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
-            (self.wheel_base * smoothed_action[1] / 2.0) / self.wheel_radius,
-        )
+            (self.wheel_base * smoothed_action[1] / 2.0)
+        ) / self.wheel_radius
         
         front_left_steering = 0
         front_right_steering = 0
