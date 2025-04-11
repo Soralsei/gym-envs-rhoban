@@ -494,7 +494,10 @@ class RR100ReachEnv(gym.Env):
         return info
 
     def _sample_goal(self, goal_space):
-        goal = np.array(goal_space.sample())
+        goal = np.zeros(2)
+        while np.linalg.norm(goal) < self.distance_threshold:
+            goal = goal_space.sample()
+
         p.resetBasePositionAndOrientation(
             self.sphere, [goal[0], goal[1], 0.9], self.start_orientation
         )
@@ -649,11 +652,11 @@ class RR100ReachEnv(gym.Env):
         self.goal_spaces = []
 
         # SMALL
-        x_down = -2.0
-        x_up = 2.0
+        x_down = -0.5
+        x_up = 0.5
 
-        y_down = -2.0
-        y_up = 2.0
+        y_down = -1.5
+        y_up = 1.5
 
         # Smaller goal space for training, for better generalization evaluation
         self.goal_spaces.append(
