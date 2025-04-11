@@ -1,7 +1,7 @@
 import time
 import gymnasium as gym
 import numpy as np
-from gym_envs_rhoban.gym_rr100.envs import RR100ReachEnv
+from gym_envs_rhoban.gym_rr100.envs import AckermannRR100ReachEnv
 from gym_envs_rhoban.gym_rr100.wrappers import FastRLapWrapper
 
 
@@ -14,7 +14,7 @@ def print_info(action, obs, reward, terminated, truncated, info):
     print(f"Info : {info}")
 
 if __name__ == "__main__":
-    env = RR100ReachEnv()
+    env = AckermannRR100ReachEnv()
     env = FastRLapWrapper(env)
     env.reset(seed=1, options=None)
 

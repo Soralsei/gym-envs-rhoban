@@ -1,7 +1,6 @@
-from abc import abstractmethod
 from enum import IntEnum
 import os
-from typing import Any, Union
+from typing import Any, Iterable
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -17,46 +16,7 @@ class GoalSpaceSize(IntEnum):
     LARGE = 2
 
 
-class GoalEnv(gym.Env):
-    """
-    Interface for A goal-based environment.
-
-    This interface is needed by agents such as Stable Baseline3's Hindsight Experience Replay (HER) agent.
-    It was originally part of https://github.com/openai/gym, but was later moved
-    to https://github.com/Farama-Foundation/gym-robotics. We cannot add gym-robotics to this project's dependencies,
-    since it does not have an official PyPi package, PyPi does not allow direct dependencies to git repositories.
-    So instead, we just reproduce the interface here.
-
-    A goal-based environment. It functions just as any regular OpenAI Gym environment but it
-    imposes a required structure on the observation_space. More concretely, the observation
-    space is required to contain at least three elements, namely `observation`, `desired_goal`, and
-    `achieved_goal`. Here, `desired_goal` specifies the goal that the agent should attempt to achieve.
-    `achieved_goal` is the goal that it currently achieved instead. `observation` contains the
-    actual observations of the environment as per usual.
-    """
-
-    @abstractmethod
-    def compute_reward(
-        self, achieved_goal: np.ndarray, desired_goal: np.ndarray, info: dict
-    ) -> float:
-        """Compute the step reward. This externalizes the reward function and makes
-        it dependent on a desired goal and the one that was achieved. If you wish to include
-        additional rewards that are independent of the goal, you can include the necessary values
-        to derive it in 'info' and compute it accordingly.
-        Args:
-            achieved_goal (object): the goal that was achieved during execution
-            desired_goal (object): the desired goal that we asked the agent to attempt to achieve
-            info (dict): an info dictionary with additional information
-        Returns:
-            float: The reward that corresponds to the provided achieved goal w.r.t. to the desired
-            goal. Note that the following should always hold true:
-                ob, reward, done, info = env.step()
-                assert reward == env.compute_reward(ob['achieved_goal'], ob['desired_goal'], info)
-        """
-        raise NotImplementedError
-
-
-class RR100ReachGoalEnv(GoalEnv):
+class AckermannRR100ReachEnv(gym.Env):
 
     metadata: dict[str, Any] = {"render_modes": ["human", "rgb_array"]}
 
@@ -73,6 +33,8 @@ class RR100ReachGoalEnv(GoalEnv):
         "rear_right_steering_joint",
     ]
 
+    M_PI_2 = np.pi / 2
+
     def __init__(
         self,
         render_mode="human",
@@ -81,7 +43,13 @@ class RR100ReachGoalEnv(GoalEnv):
         robot_action_frequency: int = 40,
         wheel_acceleration_limit: float = 2 * np.pi,
         steering_acceleration_limit: float = np.pi / 6,
-        should_load_walls: bool = True,
+        linear_velocity_limit: float = 2.0,
+        linear_acceleration_limit: float = 2.5,
+        angular_velocity_limit: float = 1.0,
+        angular_acceleration_limit: float = 3.0,
+        error_bias: Iterable[float] = np.array([1.0, 1.0]),
+        delta_weight: float = 1.0,
+        should_load_walls: bool = True
     ):
 
         self.use_ackermann = False
@@ -96,6 +64,7 @@ class RR100ReachGoalEnv(GoalEnv):
         }
 
         self.goal_space_size = goal_space_size
+        self.should_load_walls = should_load_walls
 
         # bullet parameters
         self.time_step = 1.0 / 240
@@ -107,20 +76,39 @@ class RR100ReachGoalEnv(GoalEnv):
         self.wheel_acceleration_limit = wheel_acceleration_limit
         self.steering_acceleration_limit = steering_acceleration_limit
 
-        self.robot_acceleration_limits = np.array(
-            [
-                self.wheel_acceleration_limit,
-                self.wheel_acceleration_limit,
-                self.steering_acceleration_limit,
-                self.steering_acceleration_limit,
-            ]
+        self.linear_velocity_limit = linear_velocity_limit
+        self.angular_velocity_limit = angular_velocity_limit
+        self.robot_velocity_limits = np.array(
+            [self.linear_velocity_limit, self.angular_velocity_limit]
         )
+
+        self.linear_acceleration_limit = linear_acceleration_limit
+        self.angular_acceleration_limit = angular_acceleration_limit
+        self.robot_acceleration_limits = np.array(
+            [self.linear_acceleration_limit, self.angular_acceleration_limit]
+        )
+
+        # TEMPORARY, should probably read from URDF or pass as argument
+        self.steering_track = 0.6
+        self.wheel_base = 0.5
+        self.wheel_radius = 0.21
+
+        self.rr_acceleration_limits = np.array(
+            [self.wheel_acceleration_limit, self.steering_acceleration_limit]
+        )
+
+        self.delta_weight = delta_weight
 
         # robot parameters
         self.distance_threshold = distance_threshold
         self.rr100_base_index = 0
         self.max_vel = 1
         self.start_orientation = p.getQuaternionFromEuler([0, 0, 0])
+
+        # error bias
+        if not isinstance(error_bias, np.ndarray):
+            error_bias = np.array(error_bias)
+        self.error_bias = error_bias
 
         # connect bullet
         simulation_type = p.DIRECT if render_mode != "human" else p.GUI
@@ -133,7 +121,7 @@ class RR100ReachGoalEnv(GoalEnv):
         self.if_render = False
         self.render_mode = render_mode
 
-        self.goal = np.zeros(2)
+        self.goal = [0, 0]
         self._init_simulation()
         self.previous_action = np.zeros(self.n_actions)
 
@@ -239,6 +227,8 @@ class RR100ReachGoalEnv(GoalEnv):
         # load panda
         self.load_robot()
         p.stepSimulation()
+        state = p.getLinkState(self.robot_id, self.rr100_base_index)
+        self.robot_base_z = state[0][2]
 
         self.set_rr100_initial_joints_positions()
         p.stepSimulation()
@@ -248,23 +238,10 @@ class RR100ReachGoalEnv(GoalEnv):
 
         p.stepSimulation()
 
-    def compute_reward(
-        self,
-        achieved_goal: np.ndarray,
-        desired_goal: np.ndarray,
-        info: Union[dict, list, np.ndarray],
-    ) -> float:
-        distance = np.linalg.norm(achieved_goal - desired_goal, axis=-1)
-        if isinstance(info, dict):
-            info["distance"] = distance
-        elif isinstance(info, list) or isinstance(info, np.ndarray):
-            for i in range(len(info)):
-                info[i]["distance"] = distance[i]
-        return -(distance > self.distance_threshold).astype(np.float32)
-
     # basic methods
     # -------------------------
     def step(self, action):
+        # print(f'Action : {action}')
         action = np.clip(action, self.action_space.low, self.action_space.high)
         self._set_action(action)
 
@@ -274,11 +251,11 @@ class RR100ReachGoalEnv(GoalEnv):
 
         obs = self._get_obs()
 
-        info = {}
-        reward = self.compute_reward(obs["achieved_goal"], obs["desired_goal"], info)
-        info["is_success"] = info["distance"] < self.distance_threshold
+        reward, distance = self.reward()
+        info = self._get_info(distance)
 
         terminated = info["is_success"]
+        state = p.getLinkState(self.robot_id, self.rr100_base_index)
         truncated = False
 
         return obs, reward, terminated, truncated, info
@@ -303,9 +280,8 @@ class RR100ReachGoalEnv(GoalEnv):
         self.goal = self._sample_goal(goal_space)
 
         obs = self._get_obs()
-        info = {}
-        _ = self.compute_reward(obs["achieved_goal"], obs["desired_goal"], info)
-        info["is_success"] = info["distance"] < self.distance_threshold
+        _, distance = self.reward()
+        info = self._get_info(distance)
 
         self.total_episodes += 1
 
@@ -322,6 +298,15 @@ class RR100ReachGoalEnv(GoalEnv):
             # (width, height, rgbPixels, depthPixels, segmentationMaskBuffer)
             return p.getCameraImage(640, 360)[2]
 
+    def reward(self):
+        # Get goal position in robot's frame
+        goal = np.array([self.goal[0], self.goal[1], 0.0])
+        self.goal_robot_frame = self.get_pose_in_robot_frame(goal)[:2]
+
+        reward = -np.linalg.norm(self.goal_robot_frame * self.error_bias)
+
+        return reward, np.linalg.norm(self.goal_robot_frame)
+
     # RobotEnv method
     # -------------------------
 
@@ -330,25 +315,88 @@ class RR100ReachGoalEnv(GoalEnv):
         # print("before step :", p.getJointState(self.panda_id, self.arm_eef_index)[0])
         assert action.shape == (self.n_actions,), "Action shape error"
 
-        clipped_action = np.clip(
+        clipped_action_rr100 = np.clip(
             action * self.robot_velocity_limits,
             -self.robot_velocity_limits,
             self.robot_velocity_limits,
         )
         # print(clipped_action_rr100)
         smoothed_action = self.limit_action(
-            clipped_action,
+            clipped_action_rr100,
             self.previous_action,
             self.robot_acceleration_limits,
             self.action_dt,
         )
+        # print(smoothed_action)
 
-        velocities = [
-            smoothed_action[0],
-            smoothed_action[1],
-            smoothed_action[0],
-            smoothed_action[1],
-        ]
+        vel_left_front = 0
+        vel_right_front = 0
+        vel_left_rear = 0
+        vel_right_rear = 0
+
+        sign = np.sign(smoothed_action[0])
+        vel_left_front = (
+            sign
+            * np.hypot(
+                smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
+                (self.wheel_base * smoothed_action[1] / 2.0),
+            )
+            / self.wheel_radius
+        )
+
+        vel_right_front = (
+            sign
+            * np.hypot(
+                smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
+                (self.wheel_base * smoothed_action[1] / 2.0),
+            )
+            / self.wheel_radius
+        )
+
+        vel_left_rear = (
+            sign
+            * np.hypot(
+                smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
+                (self.wheel_base * smoothed_action[1] / 2.0),
+            )
+            / self.wheel_radius
+        )
+        vel_right_rear = (
+            sign
+            * np.hypot(
+                smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
+                (self.wheel_base * smoothed_action[1] / 2.0),
+            )
+            / self.wheel_radius
+        )
+
+        front_left_steering = 0
+        front_right_steering = 0
+        rear_left_steering = 0
+        rear_right_steering = 0
+
+        if abs(2.0 * smoothed_action[0]) > abs(
+            smoothed_action[1] * self.steering_track
+        ):
+            front_left_steering = np.arctan(
+                smoothed_action[1]
+                * self.wheel_base
+                / (2.0 * smoothed_action[0] - smoothed_action[1] * self.steering_track)
+            )
+            front_right_steering = np.arctan(
+                smoothed_action[1]
+                * self.wheel_base
+                / (2.0 * smoothed_action[0] + smoothed_action[1] * self.steering_track)
+            )
+        elif abs(smoothed_action[0] > 1e-3):
+            sign = np.sign(smoothed_action[1])
+            front_left_steering = sign * AckermannRR100ReachEnv.M_PI_2
+            front_right_steering = sign * AckermannRR100ReachEnv.M_PI_2
+
+        rear_left_steering = -front_left_steering
+        rear_right_steering = -front_right_steering
+
+        velocities = [vel_left_front, vel_right_front, vel_left_rear, vel_right_rear]
         # print(f"Wheel velocities : {velocities}")
         p.setJointMotorControlArray(
             self.robot_id,
@@ -358,20 +406,27 @@ class RR100ReachGoalEnv(GoalEnv):
             forces=[20, 20, 20, 20],
         )
 
-        positions = [action[2], action[3], -action[2], -action[3]]
-        for joint, position, force, velocity_limit in zip(
-            self.steering_joint_ids,
-            positions,
-            self.steering_joint_forces,
-            self.steering_velocity_limits,
-        ):
+        positions = [
+            front_left_steering,
+            front_right_steering,
+            rear_left_steering,
+            rear_right_steering,
+        ]
+        # print(f"Wheel positions : {positions}")
+        # p.setJointMotorControlArray(
+        #     self.robot_id,
+        #     self.steering_joint_ids,
+        #     p.POSITION_CONTROL,
+        #     targetPositions=positions,
+        #     forces=self.steering_joint_forces,
+        #     maxVelocities=self.steering_velocity_limits
+        # )
+        for joint, position, force, velocity_limit in zip(self.steering_joint_ids, positions, self.steering_joint_forces, self.steering_velocity_limits):
             p.setJointMotorControl2(
-                self.robot_id,
-                joint,
-                p.POSITION_CONTROL,
+                self.robot_id, joint, p.POSITION_CONTROL,
                 targetPosition=position,
                 force=force,
-                maxVelocity=velocity_limit,
+                maxVelocity=velocity_limit
             )
 
         self.previous_action = smoothed_action
@@ -400,7 +455,7 @@ class RR100ReachGoalEnv(GoalEnv):
             self.robot_id,
             [
                 self.robot_joint_info[joint][0]
-                for joint in RR100ReachGoalEnv.RR_VELOCITY_JOINTS
+                for joint in AckermannRR100ReachEnv.RR_VELOCITY_JOINTS
             ],
         )
         steering_states = p.getJointStates(
@@ -409,7 +464,7 @@ class RR100ReachGoalEnv(GoalEnv):
                 i
                 for i in [
                     self.robot_joint_info[joint][0]
-                    for joint in RR100ReachGoalEnv.RR_POSITION_JOINTS
+                    for joint in AckermannRR100ReachEnv.RR_POSITION_JOINTS
                 ]
             ],
         )
@@ -419,11 +474,9 @@ class RR100ReachGoalEnv(GoalEnv):
         self.robot_velocity = np.array(mobile_base_state[6])[:2]
         yaw_velocity = mobile_base_state[7][2]
 
-        rr100_wheel_velocity = np.array([wheel_states[0][1], wheel_states[1][1]])
-        rr100_steering_angle = np.array([steering_states[0][0], steering_states[1][0]])
-        rr100_steering_velocity = np.array(
-            [steering_states[0][1], steering_states[1][1]]
-        )
+        rr100_steering_angle = np.array([steering_states[0][0]])
+        rr100_wheel_velocity = np.array([wheel_states[0][1]])
+        rr100_steering_velocity = np.array([steering_states[0][1]])
 
         mobile_base_orientation = np.array([self.robot_yaw])
         mobile_base_angular = np.array([yaw_velocity])
@@ -441,11 +494,14 @@ class RR100ReachGoalEnv(GoalEnv):
             )
         ).astype(np.float32)
 
-        return {
-            "observation": obs,
-            "achieved_goal": self.robot_position.copy(),
-            "desired_goal": self.goal,
+        return obs
+
+    def _get_info(self, distance):
+        info = {
+            "is_success": self._is_success(distance),
+            "distance": distance,
         }
+        return info
 
     def _sample_goal(self, goal_space):
         goal = np.zeros(2)
@@ -484,48 +540,40 @@ class RR100ReachGoalEnv(GoalEnv):
         }
         self.wheel_joint_forces = [
             self.robot_joint_info[joint][10 - 1]
-            for joint in RR100ReachGoalEnv.RR_VELOCITY_JOINTS
+            for joint in AckermannRR100ReachEnv.RR_VELOCITY_JOINTS
         ]
         self.steering_joint_forces = [
             self.robot_joint_info[joint][10 - 1]
-            for joint in RR100ReachGoalEnv.RR_POSITION_JOINTS
+            for joint in AckermannRR100ReachEnv.RR_POSITION_JOINTS
         ]
         self.wheel_joint_ids = [
             self.robot_joint_info[joint][0]
-            for joint in RR100ReachGoalEnv.RR_VELOCITY_JOINTS
+            for joint in AckermannRR100ReachEnv.RR_VELOCITY_JOINTS
         ]
         self.steering_joint_ids = [
             self.robot_joint_info[joint][0]
-            for joint in RR100ReachGoalEnv.RR_POSITION_JOINTS
+            for joint in AckermannRR100ReachEnv.RR_POSITION_JOINTS
         ]
 
         self.velocity_limits = np.array(
             [
                 self.robot_joint_info[joint][11 - 1]
-                for joint in RR100ReachGoalEnv.RR_VELOCITY_JOINTS
+                for joint in AckermannRR100ReachEnv.RR_VELOCITY_JOINTS
             ]
         )
         self.position_limits = np.array(
             [
                 self.robot_joint_info[joint][11 - 1]
-                for joint in RR100ReachGoalEnv.RR_POSITION_JOINTS
+                for joint in AckermannRR100ReachEnv.RR_POSITION_JOINTS
             ]
         )
         self.steering_velocity_limits = np.array(
             [
-                self.robot_joint_info[joint][11 - 1]
-                for joint in RR100ReachGoalEnv.RR_POSITION_JOINTS
+                self.robot_joint_info[joint][11-1]
+                for joint in AckermannRR100ReachEnv.RR_POSITION_JOINTS
             ]
         )
         print("Robot dynamics : ", p.getDynamicsInfo(self.robot_id, -1))
-        self.robot_velocity_limits = np.array(
-            [
-                np.pi,
-                np.pi,
-                self.position_limits[0],
-                self.position_limits[0],
-            ]
-        )
 
         # for joint in RR100ReachEnv.RR_VELOCITY_JOINTS:
         #     joint_info = p.getJointInfo(self.robot_id, self.robot_joint_info[joint][0])
@@ -533,11 +581,11 @@ class RR100ReachGoalEnv(GoalEnv):
         # for joint in RR100ReachEnv.RR_POSITION_JOINTS:
         #     joint_info = p.getJointInfo(self.robot_id, self.robot_joint_info[joint][0])
         #     print(f"Wheel info : {joint_info}")
-        # p.changeDynamics(
-        #     self.robot_id,
-        #     self.robot_joint_info[joint][0],
-        #     maxJointVelocity=self.robot_joint_info[joint][11 - 1],
-        # )
+            # p.changeDynamics(
+            #     self.robot_id,
+            #     self.robot_joint_info[joint][0],
+            #     maxJointVelocity=self.robot_joint_info[joint][11 - 1],
+            # )
 
     def load_walls(self, min_x, max_x, min_y, max_y):
         path = os.path.join(
@@ -599,7 +647,7 @@ class RR100ReachGoalEnv(GoalEnv):
 
         for id, position in zip(indices, initial_positions.values()):
             p.resetJointState(self.robot_id, id, position)
-        for joint in RR100ReachEnv.RR_VELOCITY_JOINTS:
+        for joint in AckermannRR100ReachEnv.RR_VELOCITY_JOINTS:
             p.resetJointState(
                 self.robot_id,
                 self.robot_joint_info[joint][0],
@@ -670,41 +718,27 @@ class RR100ReachGoalEnv(GoalEnv):
         self.position_space = spaces.Box(
             low=np.array([x_down, y_down], dtype=np.float64),
             high=np.array([x_up, y_up], dtype=np.float64),
-            dtype=np.float64,
+            dtype=np.float64
         )
 
         if self.should_load_walls:
             self.load_walls(x_down, x_up, y_down, y_up)
 
         # action_space = joint position (6 float) + mobile base velocity and steering angle (2 float) = 8 float
-        self.n_actions = 4
+        self.n_actions = 2
         self.action_space = spaces.Box(
             -1.0, 1.0, shape=(self.n_actions,), dtype=np.float32
         )
 
         obs = self._get_obs()
-        obs_spaces = {
-            "observation": spaces.Box(
-                np.finfo(np.float32).min,
-                np.finfo(np.float32).max,
-                shape=obs["observation"].shape,
-                dtype=np.float32,
-            ),
-            "achieved_goal": spaces.Box(
-                np.finfo(np.float32).min,
-                np.finfo(np.float32).max,
-                shape=obs["achieved_goal"].shape,
-                dtype=np.float32,
-            ),
-            "desired_goal": spaces.Box(
-                np.finfo(np.float32).min,
-                np.finfo(np.float32).max,
-                shape=obs["desired_goal"].shape,
-                dtype=np.float32,
-            ),
-        }
-
-        self.observation_space = spaces.Dict(obs_spaces)
+        self.observation_space = spaces.Box(
+            np.finfo(np.float32).min,
+            np.finfo(np.float32).max,
+            shape=obs.shape,
+            # shape=(num_wheels + num_joints_steering * 2 + 3 + 3 + 3 + 3 + 3,),
+            dtype=np.float32,
+        )
+        print("Observation space : ", self.observation_space)
 
     def debug_gui(self, low, high, color=[0, 0, 1]):
         # low_array = self.pos_space.low
