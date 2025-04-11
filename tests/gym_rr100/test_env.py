@@ -4,7 +4,7 @@ import gymnasium as gym
 import numpy as np
 
 import gym_envs_rhoban
-from gym_envs_rhoban.gym_rr100.wrappers import TruncateIfOutOfBounds
+from gym_envs_rhoban.gym_rr100.wrappers import TerminateIfOutOfBounds
 
 import pybullet as p
 
@@ -12,7 +12,7 @@ import pybullet as p
 
 if __name__ == "__main__":
     env = gym.make("RR100Reach-v0", max_episode_steps=800, should_load_walls=False)
-    env = TruncateIfOutOfBounds(env)
+    env = TerminateIfOutOfBounds(env)
     env.reset(seed=1, options=None)
 
     goals = [
