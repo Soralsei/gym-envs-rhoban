@@ -24,11 +24,9 @@ if __name__ == "__main__":
     env.reset(seed=1, options=None)
     
     # goals = [np.array([1, 8e2]), np.array([0, 1]), np.ones(2), -np.ones(2), np.array([1, -1]), np.array([-1, 1])]
-    goal = np.array([0.6, 0.10])
+    goal = np.array([0.3, 0.02761692])
     # goal = np.array([0, 0])
-    actions = [
-        np.array([1, 0]),
-    ]
+    action = np.array([1, 0])
     # for goal in goals:
     env.reset()
     print(f"Goal : {goal}")
@@ -36,11 +34,13 @@ if __name__ == "__main__":
     reward = env.reward(env.unwrapped.reward()[0])
     print("Reward before : ", reward)
     rewards = [reward]
-    for action in actions:
-        for _ in range(40):
-            all_info = env.step(action)
-            print_info(action, *all_info)
-            rewards.append(all_info[1])
+    # for action in actions:
+    for _ in range(40):
+        all_info = env.step(action)
+        print_info(action, *all_info)
+        rewards.append(all_info[1])
+        if all_info[2] or all_info[3]:
+            break
     
     plt.plot(rewards)
     # plt.ylim(0, 1)
