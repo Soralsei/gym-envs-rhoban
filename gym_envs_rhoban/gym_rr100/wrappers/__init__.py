@@ -6,4 +6,4 @@ from .tcheby_reward_wrapper import TchebychevRewardWrapper
 from .fastrlap_wrapper import FastRLapWrapper
 from .fastrlap_wrapper_old import OldFastRLapWrapper
 
-from .truncate_if_out_of_bounds_wrapper import TruncateIfOutOfBoundsWrapper
+from .truncate_if_out_of_bounds import TruncateIfOutOfBounds

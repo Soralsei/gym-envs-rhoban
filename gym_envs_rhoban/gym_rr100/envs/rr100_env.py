@@ -49,6 +49,7 @@ class RR100ReachEnv(gym.Env):
         angular_acceleration_limit: float = 3.0,
         error_bias: Iterable[float] = np.array([1.0, 1.0]),
         delta_weight: float = 1.0,
+        should_load_walls: bool = True
     ):
 
         self.use_ackermann = False
@@ -63,6 +64,7 @@ class RR100ReachEnv(gym.Env):
         }
 
         self.goal_space_size = goal_space_size
+        self.should_load_walls = should_load_walls
 
         # bullet parameters
         self.time_step = 1.0 / 240
@@ -590,32 +592,34 @@ class RR100ReachEnv(gym.Env):
             get_urdf_path(),
             "my_cube.urdf",
         )
+        x_size = abs(max_x - min_x)
+        y_size = abs(max_y - min_y)
         self.wall_1 = p.loadURDF(
             path,
-            basePosition=[max_x + 0.25, 0, 0],
+            basePosition=[max_x, 0, 0],
             baseOrientation=[0.0, 0.0, 0.707, 0.707],
-            globalScaling=10,
+            globalScaling=x_size,
             useFixedBase=True,
         )
         self.wall_2 = p.loadURDF(
             path,
-            basePosition=[0, max_y + 0.25, 0],
+            basePosition=[0, max_y, 0],
             baseOrientation=[0.0, 0.0, 0.0, 1.0],
-            globalScaling=10,
+            globalScaling=y_size,
             useFixedBase=True,
         )
         self.wall_3 = p.loadURDF(
             path,
-            basePosition=[0, min_y - 0.25, 0],
+            basePosition=[0, min_y, 0],
             baseOrientation=[0.0, 0.0, 0.0, 1.0],
-            globalScaling=10,
+            globalScaling=y_size,
             useFixedBase=True,
         )
         self.wall_4 = p.loadURDF(
             path,
-            basePosition=[min_x - 0.25, 0, 0],
+            basePosition=[min_x, 0, 0],
             baseOrientation=[0.0, 0.0, 0.707, 0.707],
-            globalScaling=10,
+            globalScaling=x_size,
             useFixedBase=True,
         )
 
@@ -666,54 +670,59 @@ class RR100ReachEnv(gym.Env):
         self.goal_spaces = []
 
         # SMALL
-        x_down = -0.5
-        x_up = 0.5
+        x_down = -6
+        x_up = 6
 
-        y_down = -1.5
-        y_up = 1.5
+        y_down = -6
+        y_up = 6
 
         # Smaller goal space for training, for better generalization evaluation
         self.goal_spaces.append(
             spaces.Box(
                 low=np.array([x_down, y_down]),
                 high=np.array([x_up, y_up]),
+                dtype=np.float64,
             )
         )
 
         # MEDIUM
-        x_down = -3.0
-        x_up = 3.0
+        x_down = -8.0
+        x_up = 8.0
 
-        y_down = -3.0
-        y_up = 3.0
+        y_down = -8.0
+        y_up = 8.0
 
         self.goal_spaces.append(
             spaces.Box(
                 low=np.array([x_down, y_down]),
                 high=np.array([x_up, y_up]),
+                dtype=np.float64,
             )
         )
 
         # LARGE
-        x_down = -4.0
-        x_up = 4.0
+        x_down = -10.0
+        x_up = 10.0
 
-        y_down = -4.0
-        y_up = 4.0
+        y_down = -10.0
+        y_up = 10.0
 
         self.goal_spaces.append(
             spaces.Box(
                 low=np.array([x_down, y_down]),
                 high=np.array([x_up, y_up]),
+                dtype=np.float64,
             )
         )
 
         self.position_space = spaces.Box(
             low=np.array([x_down, y_down], dtype=np.float64),
             high=np.array([x_up, y_up], dtype=np.float64),
+            dtype=np.float64
         )
 
-        self.load_walls(x_down, x_up, y_down, y_up)
+        if self.should_load_walls:
+            self.load_walls(x_down, x_up, y_down, y_up)
 
         # action_space = joint position (6 float) + mobile base velocity and steering angle (2 float) = 8 float
         self.n_actions = 2

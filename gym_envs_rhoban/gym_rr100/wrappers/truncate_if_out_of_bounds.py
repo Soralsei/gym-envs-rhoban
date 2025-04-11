@@ -1,10 +1,11 @@
 import gymnasium as gym
 import numpy as np
+import warnings
 
 from gymnasium import Wrapper
 
 
-class TruncateIfOutOfBoundsWrapper(Wrapper):
+class TruncateIfOutOfBounds(Wrapper):
     '''
     This wrapper truncates an episode if the agent steps out of bounds.
     
@@ -18,8 +19,12 @@ class TruncateIfOutOfBoundsWrapper(Wrapper):
         # If the robot steps out of bounds, truncate the episode``
         try:
             pos_space: gym.Space = self.env.unwrapped.position_space
+            print(f"Robot position {self.env.unwrapped.robot_position}")
+            print(f"Pos space : {pos_space}")
             truncated = not pos_space.contains(self.env.unwrapped.robot_position)
+            print(f"Contains : {pos_space.contains(self.env.unwrapped.robot_position)}")
         except AttributeError:
+            warnings.warn(f"Environment does not have a 'position_space' gym.Space")
             truncated = trunc
             
         return obs, reward, terminated, truncated, info
