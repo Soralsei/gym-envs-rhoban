@@ -411,13 +411,21 @@ class RR100ReachEnv(gym.Env):
             rear_right_steering,
         ]
         # print(f"Wheel positions : {positions}")
-        p.setJointMotorControlArray(
-            self.robot_id,
-            self.steering_joint_ids,
-            p.POSITION_CONTROL,
-            targetPositions=positions,
-            forces=self.steering_joint_forces,
-        )
+        # p.setJointMotorControlArray(
+        #     self.robot_id,
+        #     self.steering_joint_ids,
+        #     p.POSITION_CONTROL,
+        #     targetPositions=positions,
+        #     forces=self.steering_joint_forces,
+        #     maxVelocities=self.steering_velocity_limits
+        # )
+        for joint, position, force, velocity_limit in zip(self.steering_joint_ids, positions, self.steering_joint_forces, self.steering_velocity_limits):
+            p.setJointMotorControl2(
+                self.robot_id, joint, p.POSITION_CONTROL,
+                targetPosition=position,
+                force=force,
+                maxVelocity=velocity_limit
+            )
 
         self.previous_action = smoothed_action
         # print("Applied action : ", velocities + positions)
@@ -551,6 +559,12 @@ class RR100ReachEnv(gym.Env):
         self.position_limits = np.array(
             [
                 self.robot_joint_info[joint][11 - 1]
+                for joint in RR100ReachEnv.RR_POSITION_JOINTS
+            ]
+        )
+        self.steering_velocity_limits = np.array(
+            [
+                self.robot_joint_info[joint][11-1]
                 for joint in RR100ReachEnv.RR_POSITION_JOINTS
             ]
         )
