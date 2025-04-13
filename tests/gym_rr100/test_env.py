@@ -11,7 +11,7 @@ import pybullet as p
 
 
 if __name__ == "__main__":
-    env = gym.make("RR100Reach-v0", max_episode_steps=800, should_load_walls=False)
+    env = gym.make("AckermannReach-v0", max_episode_steps=800, should_load_walls=False)
     env = TerminateIfOutOfBounds(env)
     env.reset(seed=1, options=None)
 
@@ -47,10 +47,10 @@ if __name__ == "__main__":
         # for lin, ang, freq in actions:
         # print(f"Goal : {goals[i]}")
         action = np.array([lin,ang])
-        for _ in range(freq * 20):
+        for _ in range(freq * 2):
             obs, reward, terminated, truncated, info =  env.step(action)
             time.sleep(env.unwrapped.action_dt)
-            if truncated:
+            if terminated or truncated:
                 break
         print(p.getLinkState(env.unwrapped.robot_id, 0))
         input("Press enter to continues...")

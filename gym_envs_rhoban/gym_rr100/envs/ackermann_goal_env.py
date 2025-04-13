@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from enum import IntEnum
 import os
-from typing import Any, Iterable
+from typing import Any, Union, Iterable
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np

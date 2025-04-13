@@ -292,8 +292,8 @@ class RR100ReachEnv(gym.Env):
         assert action.shape == (self.n_actions,), "Action shape error"
 
         # Use sign of left wheels for both sides to avoid not moving
-        action[1] = np.sign(action[0]) * action[1]
-        action[3] = np.sign(action[2]) * action[3]
+        action[1] = np.sign(action[0]) * abs(action[1])
+        action[3] = np.sign(action[2]) * abs(action[3])
 
         clipped_action = np.clip(
             action * self.robot_velocity_limits,
