@@ -291,6 +291,10 @@ class RR100ReachEnv(gym.Env):
         # print("before step :", p.getJointState(self.panda_id, self.arm_eef_index)[0])
         assert action.shape == (self.n_actions,), "Action shape error"
 
+        # Use sign of left wheels for both sides to avoid not moving
+        action[1] = np.sign(action[0]) * action[1]
+        action[3] = np.sign(action[2]) * action[3]
+
         clipped_action = np.clip(
             action * self.robot_velocity_limits,
             -self.robot_velocity_limits,
@@ -380,9 +384,9 @@ class RR100ReachEnv(gym.Env):
         self.robot_velocity = np.array(mobile_base_state[6])[:2]
         yaw_velocity = mobile_base_state[7][2]
 
-        rr100_wheel_velocity = np.array([wheel_states[0][1], wheel_states[1][1]])
-        rr100_steering_angle = np.array([steering_states[0][0], steering_states[1][0]])
-        rr100_steering_velocity = np.array(
+        rr100_wheel_velocities = np.array([wheel_states[0][1], wheel_states[1][1]])
+        rr100_steering_angles = np.array([steering_states[0][0], steering_states[1][0]])
+        rr100_steering_velocities = np.array(
             [steering_states[0][1], steering_states[1][1]]
         )
 
@@ -393,9 +397,9 @@ class RR100ReachEnv(gym.Env):
             (
                 self.robot_position.copy(),
                 self.goal,
-                rr100_wheel_velocity,
-                rr100_steering_angle,
-                rr100_steering_velocity,
+                rr100_wheel_velocities,
+                rr100_steering_angles,
+                rr100_steering_velocities,
                 self.robot_velocity.copy(),
                 mobile_base_orientation,
                 mobile_base_angular,
