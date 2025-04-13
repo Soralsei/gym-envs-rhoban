@@ -41,14 +41,11 @@ class AckermannRR100ReachEnv(gym.Env):
         goal_space_size: GoalSpaceSize = GoalSpaceSize.SMALL,
         distance_threshold: float = 0.10,
         robot_action_frequency: int = 40,
-        wheel_acceleration_limit: float = 2 * np.pi,
-        steering_acceleration_limit: float = np.pi / 6,
         linear_velocity_limit: float = 2.0,
         linear_acceleration_limit: float = 2.5,
         angular_velocity_limit: float = 1.0,
         angular_acceleration_limit: float = 3.0,
         error_bias: Iterable[float] = np.array([1.0, 1.0]),
-        delta_weight: float = 1.0,
         should_load_walls: bool = True
     ):
 
@@ -73,9 +70,6 @@ class AckermannRR100ReachEnv(gym.Env):
         self.robot_action_frequency = robot_action_frequency  # Hz
         self.action_dt = 1 / self.robot_action_frequency  # s
 
-        self.wheel_acceleration_limit = wheel_acceleration_limit
-        self.steering_acceleration_limit = steering_acceleration_limit
-
         self.linear_velocity_limit = linear_velocity_limit
         self.angular_velocity_limit = angular_velocity_limit
         self.robot_velocity_limits = np.array(
@@ -92,12 +86,6 @@ class AckermannRR100ReachEnv(gym.Env):
         self.steering_track = 0.6
         self.wheel_base = 0.5
         self.wheel_radius = 0.21
-
-        self.rr_acceleration_limits = np.array(
-            [self.wheel_acceleration_limit, self.steering_acceleration_limit]
-        )
-
-        self.delta_weight = delta_weight
 
         # robot parameters
         self.distance_threshold = distance_threshold
@@ -255,7 +243,6 @@ class AckermannRR100ReachEnv(gym.Env):
         info = self._get_info(distance)
 
         terminated = info["is_success"]
-        state = p.getLinkState(self.robot_id, self.rr100_base_index)
         truncated = False
 
         return obs, reward, terminated, truncated, info
@@ -632,14 +619,6 @@ class AckermannRR100ReachEnv(gym.Env):
             "rear_left_steering_joint": 0.0,
             "rear_right_steering_joint": 0.0,
         }
-
-        self.rr100_velocity_steering_limits = np.array(
-            [np.pi, 0.57]
-        )  # velocity, steering
-        if self.use_ackermann:
-            self.rr100_velocity_steering_limits = np.array(
-                [2.0, 1.0]
-            )  # velocity, steering
 
         indices = (
             self.robot_joint_info[joint][0] for joint in initial_positions.keys()

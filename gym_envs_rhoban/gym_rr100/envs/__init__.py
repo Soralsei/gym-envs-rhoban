@@ -1,3 +1,4 @@
 from gym_envs_rhoban.gym_rr100.envs.ackermann_rr100_env import AckermannRR100ReachEnv
 from gym_envs_rhoban.gym_rr100.envs.rr100_env import RR100ReachEnv
 from gym_envs_rhoban.gym_rr100.envs.rr100_goal_env import RR100ReachGoalEnv
+from gym_envs_rhoban.gym_rr100.envs.ackermann_goal_env import AckermannGoalEnv

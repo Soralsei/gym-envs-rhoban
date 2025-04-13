@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from enum import IntEnum
 import os
-from typing import Any, Union
+from typing import Any, Iterable
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -56,7 +56,7 @@ class GoalEnv(gym.Env):
         raise NotImplementedError
 
 
-class RR100ReachGoalEnv(GoalEnv):
+class AckermannGoalEnv(GoalEnv):
 
     metadata: dict[str, Any] = {"render_modes": ["human", "rgb_array"]}
 
@@ -73,15 +73,20 @@ class RR100ReachGoalEnv(GoalEnv):
         "rear_right_steering_joint",
     ]
 
+    M_PI_2 = np.pi / 2
+
     def __init__(
         self,
         render_mode="human",
         goal_space_size: GoalSpaceSize = GoalSpaceSize.SMALL,
         distance_threshold: float = 0.10,
         robot_action_frequency: int = 40,
-        wheel_acceleration_limit: float = 2 * np.pi,
-        steering_acceleration_limit: float = np.pi / 6,
-        should_load_walls: bool = True,
+        linear_velocity_limit: float = 2.0,
+        linear_acceleration_limit: float = 2.5,
+        angular_velocity_limit: float = 1.0,
+        angular_acceleration_limit: float = 3.0,
+        error_bias: Iterable[float] = np.array([1.0, 1.0]),
+        should_load_walls: bool = True
     ):
 
         self.use_ackermann = False
@@ -96,6 +101,7 @@ class RR100ReachGoalEnv(GoalEnv):
         }
 
         self.goal_space_size = goal_space_size
+        self.should_load_walls = should_load_walls
 
         # bullet parameters
         self.time_step = 1.0 / 240
@@ -104,23 +110,33 @@ class RR100ReachGoalEnv(GoalEnv):
         self.robot_action_frequency = robot_action_frequency  # Hz
         self.action_dt = 1 / self.robot_action_frequency  # s
 
-        self.wheel_acceleration_limit = wheel_acceleration_limit
-        self.steering_acceleration_limit = steering_acceleration_limit
-
-        self.robot_acceleration_limits = np.array(
-            [
-                self.wheel_acceleration_limit,
-                self.wheel_acceleration_limit,
-                self.steering_acceleration_limit,
-                self.steering_acceleration_limit,
-            ]
+        self.linear_velocity_limit = linear_velocity_limit
+        self.angular_velocity_limit = angular_velocity_limit
+        self.robot_velocity_limits = np.array(
+            [self.linear_velocity_limit, self.angular_velocity_limit]
         )
+
+        self.linear_acceleration_limit = linear_acceleration_limit
+        self.angular_acceleration_limit = angular_acceleration_limit
+        self.robot_acceleration_limits = np.array(
+            [self.linear_acceleration_limit, self.angular_acceleration_limit]
+        )
+
+        # TEMPORARY, should probably read from URDF or pass as argument
+        self.steering_track = 0.6
+        self.wheel_base = 0.5
+        self.wheel_radius = 0.21
 
         # robot parameters
         self.distance_threshold = distance_threshold
         self.rr100_base_index = 0
         self.max_vel = 1
         self.start_orientation = p.getQuaternionFromEuler([0, 0, 0])
+
+        # error bias
+        if not isinstance(error_bias, np.ndarray):
+            error_bias = np.array(error_bias)
+        self.error_bias = error_bias
 
         # connect bullet
         simulation_type = p.DIRECT if render_mode != "human" else p.GUI
@@ -342,13 +358,76 @@ class RR100ReachGoalEnv(GoalEnv):
             self.robot_acceleration_limits,
             self.action_dt,
         )
+        # print(smoothed_action)
 
-        velocities = [
-            smoothed_action[0],
-            smoothed_action[1],
-            smoothed_action[0],
-            smoothed_action[1],
-        ]
+        vel_left_front = 0
+        vel_right_front = 0
+        vel_left_rear = 0
+        vel_right_rear = 0
+
+        sign = np.sign(smoothed_action[0])
+        vel_left_front = (
+            sign
+            * np.hypot(
+                smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
+                (self.wheel_base * smoothed_action[1] / 2.0),
+            )
+            / self.wheel_radius
+        )
+
+        vel_right_front = (
+            sign
+            * np.hypot(
+                smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
+                (self.wheel_base * smoothed_action[1] / 2.0),
+            )
+            / self.wheel_radius
+        )
+
+        vel_left_rear = (
+            sign
+            * np.hypot(
+                smoothed_action[0] - smoothed_action[1] * self.steering_track / 2,
+                (self.wheel_base * smoothed_action[1] / 2.0),
+            )
+            / self.wheel_radius
+        )
+        vel_right_rear = (
+            sign
+            * np.hypot(
+                smoothed_action[0] + smoothed_action[1] * self.steering_track / 2,
+                (self.wheel_base * smoothed_action[1] / 2.0),
+            )
+            / self.wheel_radius
+        )
+
+        front_left_steering = 0
+        front_right_steering = 0
+        rear_left_steering = 0
+        rear_right_steering = 0
+
+        if abs(2.0 * smoothed_action[0]) > abs(
+            smoothed_action[1] * self.steering_track
+        ):
+            front_left_steering = np.arctan(
+                smoothed_action[1]
+                * self.wheel_base
+                / (2.0 * smoothed_action[0] - smoothed_action[1] * self.steering_track)
+            )
+            front_right_steering = np.arctan(
+                smoothed_action[1]
+                * self.wheel_base
+                / (2.0 * smoothed_action[0] + smoothed_action[1] * self.steering_track)
+            )
+        elif abs(smoothed_action[0] > 1e-3):
+            sign = np.sign(smoothed_action[1])
+            front_left_steering = sign * AckermannGoalEnv.M_PI_2
+            front_right_steering = sign * AckermannGoalEnv.M_PI_2
+
+        rear_left_steering = -front_left_steering
+        rear_right_steering = -front_right_steering
+
+        velocities = [vel_left_front, vel_right_front, vel_left_rear, vel_right_rear]
         # print(f"Wheel velocities : {velocities}")
         p.setJointMotorControlArray(
             self.robot_id,
@@ -358,20 +437,27 @@ class RR100ReachGoalEnv(GoalEnv):
             forces=[20, 20, 20, 20],
         )
 
-        positions = [action[2], action[3], -action[2], -action[3]]
-        for joint, position, force, velocity_limit in zip(
-            self.steering_joint_ids,
-            positions,
-            self.steering_joint_forces,
-            self.steering_velocity_limits,
-        ):
+        positions = [
+            front_left_steering,
+            front_right_steering,
+            rear_left_steering,
+            rear_right_steering,
+        ]
+        # print(f"Wheel positions : {positions}")
+        # p.setJointMotorControlArray(
+        #     self.robot_id,
+        #     self.steering_joint_ids,
+        #     p.POSITION_CONTROL,
+        #     targetPositions=positions,
+        #     forces=self.steering_joint_forces,
+        #     maxVelocities=self.steering_velocity_limits
+        # )
+        for joint, position, force, velocity_limit in zip(self.steering_joint_ids, positions, self.steering_joint_forces, self.steering_velocity_limits):
             p.setJointMotorControl2(
-                self.robot_id,
-                joint,
-                p.POSITION_CONTROL,
+                self.robot_id, joint, p.POSITION_CONTROL,
                 targetPosition=position,
                 force=force,
-                maxVelocity=velocity_limit,
+                maxVelocity=velocity_limit
             )
 
         self.previous_action = smoothed_action
@@ -400,7 +486,7 @@ class RR100ReachGoalEnv(GoalEnv):
             self.robot_id,
             [
                 self.robot_joint_info[joint][0]
-                for joint in RR100ReachGoalEnv.RR_VELOCITY_JOINTS
+                for joint in AckermannGoalEnv.RR_VELOCITY_JOINTS
             ],
         )
         steering_states = p.getJointStates(
@@ -409,7 +495,7 @@ class RR100ReachGoalEnv(GoalEnv):
                 i
                 for i in [
                     self.robot_joint_info[joint][0]
-                    for joint in RR100ReachGoalEnv.RR_POSITION_JOINTS
+                    for joint in AckermannGoalEnv.RR_POSITION_JOINTS
                 ]
             ],
         )
@@ -419,11 +505,9 @@ class RR100ReachGoalEnv(GoalEnv):
         self.robot_velocity = np.array(mobile_base_state[6])[:2]
         yaw_velocity = mobile_base_state[7][2]
 
-        rr100_wheel_velocity = np.array([wheel_states[0][1], wheel_states[1][1]])
-        rr100_steering_angle = np.array([steering_states[0][0], steering_states[1][0]])
-        rr100_steering_velocity = np.array(
-            [steering_states[0][1], steering_states[1][1]]
-        )
+        rr100_steering_angle = np.array([steering_states[0][0]])
+        rr100_wheel_velocity = np.array([wheel_states[0][1]])
+        rr100_steering_velocity = np.array([steering_states[0][1]])
 
         mobile_base_orientation = np.array([self.robot_yaw])
         mobile_base_angular = np.array([yaw_velocity])
@@ -484,48 +568,40 @@ class RR100ReachGoalEnv(GoalEnv):
         }
         self.wheel_joint_forces = [
             self.robot_joint_info[joint][10 - 1]
-            for joint in RR100ReachGoalEnv.RR_VELOCITY_JOINTS
+            for joint in AckermannGoalEnv.RR_VELOCITY_JOINTS
         ]
         self.steering_joint_forces = [
             self.robot_joint_info[joint][10 - 1]
-            for joint in RR100ReachGoalEnv.RR_POSITION_JOINTS
+            for joint in AckermannGoalEnv.RR_POSITION_JOINTS
         ]
         self.wheel_joint_ids = [
             self.robot_joint_info[joint][0]
-            for joint in RR100ReachGoalEnv.RR_VELOCITY_JOINTS
+            for joint in AckermannGoalEnv.RR_VELOCITY_JOINTS
         ]
         self.steering_joint_ids = [
             self.robot_joint_info[joint][0]
-            for joint in RR100ReachGoalEnv.RR_POSITION_JOINTS
+            for joint in AckermannGoalEnv.RR_POSITION_JOINTS
         ]
 
         self.velocity_limits = np.array(
             [
                 self.robot_joint_info[joint][11 - 1]
-                for joint in RR100ReachGoalEnv.RR_VELOCITY_JOINTS
+                for joint in AckermannGoalEnv.RR_VELOCITY_JOINTS
             ]
         )
         self.position_limits = np.array(
             [
                 self.robot_joint_info[joint][11 - 1]
-                for joint in RR100ReachGoalEnv.RR_POSITION_JOINTS
+                for joint in AckermannGoalEnv.RR_POSITION_JOINTS
             ]
         )
         self.steering_velocity_limits = np.array(
             [
-                self.robot_joint_info[joint][11 - 1]
-                for joint in RR100ReachGoalEnv.RR_POSITION_JOINTS
+                self.robot_joint_info[joint][11-1]
+                for joint in AckermannGoalEnv.RR_POSITION_JOINTS
             ]
         )
         print("Robot dynamics : ", p.getDynamicsInfo(self.robot_id, -1))
-        self.robot_velocity_limits = np.array(
-            [
-                np.pi,
-                np.pi,
-                self.position_limits[0],
-                self.position_limits[0],
-            ]
-        )
 
         # for joint in RR100ReachEnv.RR_VELOCITY_JOINTS:
         #     joint_info = p.getJointInfo(self.robot_id, self.robot_joint_info[joint][0])
@@ -533,11 +609,11 @@ class RR100ReachGoalEnv(GoalEnv):
         # for joint in RR100ReachEnv.RR_POSITION_JOINTS:
         #     joint_info = p.getJointInfo(self.robot_id, self.robot_joint_info[joint][0])
         #     print(f"Wheel info : {joint_info}")
-        # p.changeDynamics(
-        #     self.robot_id,
-        #     self.robot_joint_info[joint][0],
-        #     maxJointVelocity=self.robot_joint_info[joint][11 - 1],
-        # )
+            # p.changeDynamics(
+            #     self.robot_id,
+            #     self.robot_joint_info[joint][0],
+            #     maxJointVelocity=self.robot_joint_info[joint][11 - 1],
+            # )
 
     def load_walls(self, min_x, max_x, min_y, max_y):
         path = os.path.join(
@@ -585,21 +661,13 @@ class RR100ReachGoalEnv(GoalEnv):
             "rear_right_steering_joint": 0.0,
         }
 
-        self.rr100_velocity_steering_limits = np.array(
-            [np.pi, 0.57]
-        )  # velocity, steering
-        if self.use_ackermann:
-            self.rr100_velocity_steering_limits = np.array(
-                [2.0, 1.0]
-            )  # velocity, steering
-
         indices = (
             self.robot_joint_info[joint][0] for joint in initial_positions.keys()
         )
 
         for id, position in zip(indices, initial_positions.values()):
             p.resetJointState(self.robot_id, id, position)
-        for joint in RR100ReachGoalEnv.RR_VELOCITY_JOINTS:
+        for joint in AckermannGoalEnv.RR_VELOCITY_JOINTS:
             p.resetJointState(
                 self.robot_id,
                 self.robot_joint_info[joint][0],
@@ -677,7 +745,7 @@ class RR100ReachGoalEnv(GoalEnv):
             self.load_walls(x_down, x_up, y_down, y_up)
 
         # action_space = joint position (6 float) + mobile base velocity and steering angle (2 float) = 8 float
-        self.n_actions = 4
+        self.n_actions = 2
         self.action_space = spaces.Box(
             -1.0, 1.0, shape=(self.n_actions,), dtype=np.float64
         )
