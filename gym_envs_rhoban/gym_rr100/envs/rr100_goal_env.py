@@ -626,11 +626,11 @@ class RR100ReachGoalEnv(GoalEnv):
         self.goal_spaces = []
 
         # SMALL
-        x_down = -6
-        x_up = 6
+        x_down = -2
+        x_up = 2
 
-        y_down = -6
-        y_up = 6
+        y_down = -2
+        y_up = 2
 
         # Smaller goal space for training, for better generalization evaluation
         self.goal_spaces.append(
@@ -642,11 +642,11 @@ class RR100ReachGoalEnv(GoalEnv):
         )
 
         # MEDIUM
-        x_down = -8.0
-        x_up = 8.0
+        x_down = -3
+        x_up = 3
 
-        y_down = -8.0
-        y_up = 8.0
+        y_down = -3
+        y_up = 3
 
         self.goal_spaces.append(
             spaces.Box(
@@ -657,11 +657,11 @@ class RR100ReachGoalEnv(GoalEnv):
         )
 
         # LARGE
-        x_down = -10.0
-        x_up = 10.0
+        x_down = -4
+        x_up = 4
 
-        y_down = -10.0
-        y_up = 10.0
+        y_down = -4
+        y_up = 4
 
         self.goal_spaces.append(
             spaces.Box(
