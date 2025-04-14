@@ -16,7 +16,7 @@ class GoalSpaceSize(IntEnum):
     LARGE = 2
 
 
-class AckermannRR100ReachEnv(gym.Env):
+class AckermannReachEnv(gym.Env):
 
     metadata: dict[str, Any] = {"render_modes": ["human", "rgb_array"]}
 
@@ -377,8 +377,8 @@ class AckermannRR100ReachEnv(gym.Env):
             )
         elif abs(smoothed_action[0] > 1e-3):
             sign = np.sign(smoothed_action[1])
-            front_left_steering = sign * AckermannRR100ReachEnv.M_PI_2
-            front_right_steering = sign * AckermannRR100ReachEnv.M_PI_2
+            front_left_steering = sign * AckermannReachEnv.M_PI_2
+            front_right_steering = sign * AckermannReachEnv.M_PI_2
 
         rear_left_steering = -front_left_steering
         rear_right_steering = -front_right_steering
@@ -442,7 +442,7 @@ class AckermannRR100ReachEnv(gym.Env):
             self.robot_id,
             [
                 self.robot_joint_info[joint][0]
-                for joint in AckermannRR100ReachEnv.RR_VELOCITY_JOINTS
+                for joint in AckermannReachEnv.RR_VELOCITY_JOINTS
             ],
         )
         steering_states = p.getJointStates(
@@ -451,7 +451,7 @@ class AckermannRR100ReachEnv(gym.Env):
                 i
                 for i in [
                     self.robot_joint_info[joint][0]
-                    for joint in AckermannRR100ReachEnv.RR_POSITION_JOINTS
+                    for joint in AckermannReachEnv.RR_POSITION_JOINTS
                 ]
             ],
         )
@@ -527,37 +527,37 @@ class AckermannRR100ReachEnv(gym.Env):
         }
         self.wheel_joint_forces = [
             self.robot_joint_info[joint][10 - 1]
-            for joint in AckermannRR100ReachEnv.RR_VELOCITY_JOINTS
+            for joint in AckermannReachEnv.RR_VELOCITY_JOINTS
         ]
         self.steering_joint_forces = [
             self.robot_joint_info[joint][10 - 1]
-            for joint in AckermannRR100ReachEnv.RR_POSITION_JOINTS
+            for joint in AckermannReachEnv.RR_POSITION_JOINTS
         ]
         self.wheel_joint_ids = [
             self.robot_joint_info[joint][0]
-            for joint in AckermannRR100ReachEnv.RR_VELOCITY_JOINTS
+            for joint in AckermannReachEnv.RR_VELOCITY_JOINTS
         ]
         self.steering_joint_ids = [
             self.robot_joint_info[joint][0]
-            for joint in AckermannRR100ReachEnv.RR_POSITION_JOINTS
+            for joint in AckermannReachEnv.RR_POSITION_JOINTS
         ]
 
         self.velocity_limits = np.array(
             [
                 self.robot_joint_info[joint][11 - 1]
-                for joint in AckermannRR100ReachEnv.RR_VELOCITY_JOINTS
+                for joint in AckermannReachEnv.RR_VELOCITY_JOINTS
             ]
         )
         self.position_limits = np.array(
             [
                 self.robot_joint_info[joint][11 - 1]
-                for joint in AckermannRR100ReachEnv.RR_POSITION_JOINTS
+                for joint in AckermannReachEnv.RR_POSITION_JOINTS
             ]
         )
         self.steering_velocity_limits = np.array(
             [
                 self.robot_joint_info[joint][11-1]
-                for joint in AckermannRR100ReachEnv.RR_POSITION_JOINTS
+                for joint in AckermannReachEnv.RR_POSITION_JOINTS
             ]
         )
         print("Robot dynamics : ", p.getDynamicsInfo(self.robot_id, -1))
@@ -626,7 +626,7 @@ class AckermannRR100ReachEnv(gym.Env):
 
         for id, position in zip(indices, initial_positions.values()):
             p.resetJointState(self.robot_id, id, position)
-        for joint in AckermannRR100ReachEnv.RR_VELOCITY_JOINTS:
+        for joint in AckermannReachEnv.RR_VELOCITY_JOINTS:
             p.resetJointState(
                 self.robot_id,
                 self.robot_joint_info[joint][0],
