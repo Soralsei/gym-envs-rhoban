@@ -20,22 +20,28 @@ class TerminateIfOutOfBounds(Wrapper):
         print(f"Wrapping environment with an {self.class_name()}")
         self.len = 0
         self.t_start = time.time()
+        self.rewards = []
     
     def reset(self, *, seed = None, options = None):
         self.len = 0
+        self.rewards = []
         return super().reset(seed=seed, options=options)
     
     def step(self, action):
         self.len += 1
         obs, reward, terminated, truncated, info = super().step(action)
+        self.rewards.append(reward)
         # If the robot steps out of bounds, truncate the episode``
         try:
             pos_space: gym.Space = self.env.unwrapped.position_space
             should_terminate = not pos_space.contains(self.env.unwrapped.robot_position)
             if should_terminate:
                 print("Terminating : robot out of bounds")
+                # Band-aid fix until I add prefix_wrapper and suffix_wrapper to experiment manager create_env
+                # If this is not set, evaluate_policy ignores our "terminated" signal and waits for Monitor
+                # to signal episode end (truncation or target reaching)
                 info["episode"] = {
-                    "r": reward,
+                    "r": sum(self.rewards),
                     "l" : self.len,
                     "t" : time.time() - self.t_start
                 }
