@@ -14,6 +14,9 @@ class TerminateIfOutOfBounds(Wrapper):
     - `position_space: gym.Space`
     - `robot_position: np.ndarray` with the same shape as `position_space`
     '''
+    def __init__(self, env):
+        super().__init__(env)
+        print(f"Wrapping environment with an {self.class_name()}")
     
     def step(self, action):
         obs, reward, terminated, truncated, info = super().step(action)
