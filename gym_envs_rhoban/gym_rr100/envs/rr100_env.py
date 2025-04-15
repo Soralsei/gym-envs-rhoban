@@ -385,17 +385,17 @@ class RR100ReachEnv(gym.Env):
         w_i = smoothed_action[0] * R_w_i / R_w_c
         w_o = smoothed_action[0] * R_w_o / R_w_c
 
-        print(f"phi_i = {phi_i}")
-        print(f"phi_o = {phi_o}")
-        print(f"R_steering_c = {R_steering_c}")
-        print(f"R_steering_i = {R_steering_i}")
-        print(f"R_steering_o = {R_steering_o}")
-        print(f"R_w_c = {R_w_c}")
-        print(f"R_w_i = {R_w_i}")
-        print(f"R_w_o = {R_w_o}")
-        print(f"w_c = {smoothed_action[0]}")
-        print(f"w_i = {w_i}")
-        print(f"w_o = {w_o}")
+        # print(f"phi_i = {phi_i}")
+        # print(f"phi_o = {phi_o}")
+        # print(f"R_steering_c = {R_steering_c}")
+        # print(f"R_steering_i = {R_steering_i}")
+        # print(f"R_steering_o = {R_steering_o}")
+        # print(f"R_w_c = {R_w_c}")
+        # print(f"R_w_i = {R_w_i}")
+        # print(f"R_w_o = {R_w_o}")
+        # print(f"w_c = {smoothed_action[0]}")
+        # print(f"w_i = {w_i}")
+        # print(f"w_o = {w_o}")
 
         if smoothed_action[1] > 0:
             velocities = [w_i, w_o, w_i, w_o]
