@@ -404,8 +404,6 @@ class RR100ReachEnv(gym.Env):
             velocities = [w_o, w_i, w_o, w_i]
             positions = [phi_o, phi_i, -phi_o, -phi_i]
 
-        print(positions)
-
         p.setJointMotorControlArray(
             self.robot_id,
             self.wheel_joint_ids,
