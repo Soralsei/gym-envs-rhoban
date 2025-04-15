@@ -1,4 +1,5 @@
 from enum import IntEnum
+import math
 import os
 from typing import Any, Iterable
 import gymnasium as gym
@@ -43,9 +44,10 @@ class RR100ReachEnv(gym.Env):
         steering_acceleration_limit: float = np.pi / 6,
         error_bias: Iterable[float] = np.array([1.0, 1.0]),
         should_load_walls: bool = True,
+        is_rl_ackermann: bool = False,
     ):
 
-        self.use_ackermann = False
+        self.is_rl_ackermann = is_rl_ackermann
 
         # switch tool to convert a numeric value to string value
         self.switcher_type_name = {
@@ -69,14 +71,11 @@ class RR100ReachEnv(gym.Env):
         self.wheel_acceleration_limit = wheel_acceleration_limit
         self.steering_acceleration_limit = steering_acceleration_limit
 
-        self.robot_acceleration_limits = np.array(
-            [
-                self.wheel_acceleration_limit,
-                self.wheel_acceleration_limit,
-                self.steering_acceleration_limit,
-                self.steering_acceleration_limit,
-            ]
-        )
+        # TEMPORARY, should probably read from URDF or pass as argument
+        self.steering_track = 0.6
+        self.wheel_base = 0.5 / 2
+        self.wheel_radius = 0.21
+        self.steering_position_limit = 0.347
 
         # robot parameters
         self.distance_threshold = distance_threshold
@@ -291,6 +290,12 @@ class RR100ReachEnv(gym.Env):
         # print("before step :", p.getJointState(self.panda_id, self.arm_eef_index)[0])
         assert action.shape == (self.n_actions,), "Action shape error"
 
+        if self.is_rl_ackermann:
+            self._rl_ackermann_set_action(action)
+        else:
+            self._simple_set_action(action)
+
+    def _simple_set_action(self, action):
         # Use sign of left wheels for both sides to avoid not moving
         action[1] = np.sign(action[0]) * abs(action[1])
         action[3] = np.sign(action[2]) * abs(action[3])
@@ -341,6 +346,90 @@ class RR100ReachEnv(gym.Env):
 
         self.previous_action = smoothed_action
         # print("Applied action : ", velocities + positions)
+
+    def _rl_ackermann_set_action(self, action):
+        clipped_action = np.clip(
+            action * self.robot_velocity_limits,
+            -self.robot_velocity_limits,
+            self.robot_velocity_limits,
+        )
+        smoothed_action = self.limit_action(
+            clipped_action,
+            self.previous_action,
+            self.robot_acceleration_limits,
+            self.action_dt,
+        )
+        side = 1 if smoothed_action[1] > 0 else -1
+        phi_i = math.atan2(
+            (2 * self.wheel_base * math.sin(smoothed_action[1])),
+            (
+                2 * self.wheel_base * math.cos(smoothed_action[1])
+                - side * self.steering_track * math.sin(smoothed_action[1])
+            )
+        )
+        phi_o = math.atan2(
+            (2 * self.wheel_base * math.sin(smoothed_action[1])),
+            (
+                2 * self.wheel_base * math.cos(smoothed_action[1])
+                + side * self.steering_track * math.sin(smoothed_action[1])
+            )
+        )
+        R_steering_i = self.wheel_base * math.tan(np.pi/2 - abs(phi_i) + 1e-9)
+        R_steering_o = R_steering_i + self.steering_track
+        R_steering_c = R_steering_i + (self.steering_track / 2)
+
+        R_w_i = np.sqrt(R_steering_i**2 + self.wheel_base**2)
+        R_w_o = np.sqrt(R_steering_o**2 + self.wheel_base**2)
+        R_w_c = np.sqrt(R_steering_c**2 + self.wheel_base**2)
+
+        w_i = smoothed_action[0] * R_w_i / R_w_c
+        w_o = smoothed_action[0] * R_w_o / R_w_c
+
+        print(f"phi_i = {phi_i}")
+        print(f"phi_o = {phi_o}")
+        print(f"R_steering_c = {R_steering_c}")
+        print(f"R_steering_i = {R_steering_i}")
+        print(f"R_steering_o = {R_steering_o}")
+        print(f"R_w_c = {R_w_c}")
+        print(f"R_w_i = {R_w_i}")
+        print(f"R_w_o = {R_w_o}")
+        print(f"w_c = {smoothed_action[0]}")
+        print(f"w_i = {w_i}")
+        print(f"w_o = {w_o}")
+
+        if smoothed_action[1] > 0:
+            velocities = [w_i, w_o, w_i, w_o]
+            positions = [phi_i, phi_o, -phi_i, -phi_o]
+        else:
+            velocities = [w_o, w_i, w_o, w_i]
+            positions = [phi_o, phi_i, -phi_o, -phi_i]
+
+        print(positions)
+
+        p.setJointMotorControlArray(
+            self.robot_id,
+            self.wheel_joint_ids,
+            p.VELOCITY_CONTROL,
+            targetVelocities=velocities,
+            forces=[20, 20, 20, 20],
+        )
+
+        for joint, position, force, velocity_limit in zip(
+            self.steering_joint_ids,
+            positions,
+            self.steering_joint_forces,
+            self.steering_velocity_limits,
+        ):
+            p.setJointMotorControl2(
+                self.robot_id,
+                joint,
+                p.POSITION_CONTROL,
+                targetPosition=position,
+                force=force,
+                maxVelocity=velocity_limit,
+            )
+
+        self.previous_action = smoothed_action
 
     def limit_action(self, action, prev_action, max_acceleration, dt) -> np.ndarray:
         """
@@ -473,7 +562,6 @@ class RR100ReachEnv(gym.Env):
                 for joint in RR100ReachEnv.RR_VELOCITY_JOINTS
             ]
         )
-        print(self.velocity_limits)
         self.position_limits = np.array(
             [
                 self.robot_joint_info[joint][11 - 1]
@@ -487,14 +575,36 @@ class RR100ReachEnv(gym.Env):
             ]
         )
         print("Robot dynamics : ", p.getDynamicsInfo(self.robot_id, -1))
-        self.robot_velocity_limits = np.array(
-            [
-                np.pi,
-                np.pi,
-                self.position_limits[0],
-                self.position_limits[0],
-            ]
-        )
+        if self.is_rl_ackermann:
+            self.robot_velocity_limits = np.array(
+                [
+                    np.pi,
+                    self.steering_position_limit,
+                ]
+            )
+            self.robot_acceleration_limits = np.array(
+                [
+                    self.wheel_acceleration_limit,
+                    self.steering_acceleration_limit,
+                ]
+            )
+        else:
+            self.robot_velocity_limits = np.array(
+                [
+                    np.pi,
+                    np.pi,
+                    self.position_limits[0],
+                    self.position_limits[0],
+                ]
+            )
+            self.robot_acceleration_limits = np.array(
+                [
+                    self.wheel_acceleration_limit,
+                    self.wheel_acceleration_limit,
+                    self.steering_acceleration_limit,
+                    self.steering_acceleration_limit,
+                ]
+            )
 
         # for joint in RR100ReachEnv.RR_VELOCITY_JOINTS:
         #     joint_info = p.getJointInfo(self.robot_id, self.robot_joint_info[joint][0])
@@ -553,15 +663,6 @@ class RR100ReachEnv(gym.Env):
             "rear_left_steering_joint": 0.0,
             "rear_right_steering_joint": 0.0,
         }
-
-        self.rr100_velocity_steering_limits = np.array(
-            [np.pi, 0.57]
-        )  # velocity, steering
-        if self.use_ackermann:
-            self.rr100_velocity_steering_limits = np.array(
-                [2.0, 1.0]
-            )  # velocity, steering
-
         indices = (
             self.robot_joint_info[joint][0] for joint in initial_positions.keys()
         )
@@ -646,7 +747,7 @@ class RR100ReachEnv(gym.Env):
             self.load_walls(x_down, x_up, y_down, y_up)
 
         # action_space = joint position (6 float) + mobile base velocity and steering angle (2 float) = 8 float
-        self.n_actions = 4
+        self.n_actions = 2 if self.is_rl_ackermann else 4
         self.action_space = spaces.Box(
             -1.0, 1.0, shape=(self.n_actions,), dtype=np.float32
         )
