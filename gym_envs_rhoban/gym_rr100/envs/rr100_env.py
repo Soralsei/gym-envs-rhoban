@@ -749,7 +749,7 @@ class RR100ReachEnv(gym.Env):
         # action_space = joint position (6 float) + mobile base velocity and steering angle (2 float) = 8 float
         self.n_actions = 2 if self.is_rl_ackermann else 4
         self.action_space = spaces.Box(
-            -1.0, 1.0, shape=(self.n_actions,), dtype=np.float32
+            -1.0, 1.0, shape=(self.n_actions,), dtype=np.float64
         )
 
         obs = self._get_obs()
