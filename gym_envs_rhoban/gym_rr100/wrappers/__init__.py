@@ -1,5 +1,6 @@
 from .fan_reward_wrapper import FanRewardWrapper
 from .angle_reward_wrapper import AngleRewardWrapper
+from .car_reward_wrapper import CarRewardWrapper
 from .linear_angle_reward_wrapper import LinearAngleRewardWrapper
 from .exp_angle_reward_wrapper import ExponentialAngleRewardWrapper
 from .tcheby_reward_wrapper import TchebychevRewardWrapper

@@ -374,7 +374,7 @@ class RR100ReachEnv(gym.Env):
                 + side * self.steering_track * math.sin(smoothed_action[1])
             )
         )
-        R_steering_i = self.wheel_base * math.tan(np.pi/2 - abs(phi_i) + 1e-9)
+        R_steering_i = self.wheel_base * math.tan(np.pi/2 - abs(phi_i))
         R_steering_o = R_steering_i + self.steering_track
         R_steering_c = R_steering_i + (self.steering_track / 2)
 
