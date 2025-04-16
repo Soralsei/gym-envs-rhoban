@@ -1,3 +1,4 @@
+import time
 import warnings as w
 
 import numpy as np
@@ -12,6 +13,9 @@ class FastRLapWrapper(Wrapper):
         self._last_positions.fill(np.inf)
         print(f"Wrapping environment with {self.class_name()}")
         w.filterwarnings("once", append=True)
+        self.t_start = time.time()
+        self.rewards = []
+        self.len = 0
 
     def step(self, action):
         observation, reward, terminated, truncated, info = super().step(action)
@@ -21,7 +25,15 @@ class FastRLapWrapper(Wrapper):
             self._last_positions[-1] = self.env.unwrapped.robot_position
         except AttributeError as e:
             w.warn(f"Missing attribute : {e}")
-        
+            timeout = False
+
+        self.rewards.append(reward)
+        if timeout:
+            info["episode"] = {
+                "r": sum(self.rewards),
+                "l" : self.len,
+                "t" : time.time() - self.t_start
+            }
         return observation, reward, terminated, truncated | timeout, info
 
     def reward(self):
@@ -49,7 +61,9 @@ class FastRLapWrapper(Wrapper):
 
     def reset(self, *, seed=None, options=None):
         self._last_positions.fill(np.inf)
-        return super().reset(seed=seed, options=options)
+        self.len = 0
+        self.rewards = []
+        return super().reset(seed=seed, options=options)        
 
     @property
     def should_timeout(self):
