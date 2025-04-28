@@ -28,8 +28,8 @@
                 <mesh filename="package://rr100_description/meshes/rr100.dae"
                     scale="0.001 0.001 0.001" />
             </geometry>
-            <material name="white">
-                <color rgba="1 1 1 1.0" />
+            <material name="Gray">
+                <color rgba="0.7 0.7 0.7 1.0" />
             </material>
         </visual>
         <collision>
@@ -110,9 +110,9 @@
             <geometry>
                 <cylinder length="0.095" radius="0.21" />
             </geometry>
-            <material name="black">
+            <!-- <material name="black">
                 <color rgba="0 0 0 1" />
-            </material>
+            </material> -->
         </collision>
     </link>
     <joint name="front_left_wheel" type="continuous">
@@ -180,9 +180,9 @@
             <geometry>
                 <cylinder length="0.095" radius="0.21" />
             </geometry>
-            <material name="black">
+            <!-- <material name="black">
                 <color rgba="0 0 0 1" />
-            </material>
+            </material> -->
         </collision>
     </link>
     <joint name="front_right_wheel" type="continuous">
@@ -249,9 +249,9 @@
             <geometry>
                 <cylinder length="0.095" radius="0.21" />
             </geometry>
-            <material name="black">
+            <!-- <material name="black">
                 <color rgba="0 0 0 1" />
-            </material>
+            </material> -->
         </collision>
     </link>
     <joint name="rear_left_wheel" type="continuous">
@@ -318,9 +318,9 @@
             <geometry>
                 <cylinder length="0.095" radius="0.21" />
             </geometry>
-            <material name="black">
+            <!-- <material name="black">
                 <color rgba="0 0 0 1" />
-            </material>
+            </material> -->
         </collision>
     </link>
     <joint name="rear_right_wheel" type="continuous">

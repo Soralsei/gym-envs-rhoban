@@ -45,9 +45,18 @@ class RR100ReachEnv(gym.Env):
         error_bias: Iterable[float] = np.array([1.0, 1.0]),
         should_load_walls: bool = True,
         is_rl_ackermann: bool = False,
+        should_reset_robot_position: bool = True,
+        should_retransform_to_local: bool = False,
     ):
 
         self.is_rl_ackermann = is_rl_ackermann
+        self.should_reset_robot_pos = should_reset_robot_position
+        self.should_retransform_to_local = should_retransform_to_local
+        self.total_episodes = 0
+        self.initial_distance = 0.0
+        self.total_traveled = 0.0
+        self.robot_position = np.zeros(2)
+        self.initial_robot_pose = [np.zeros(3), np.zeros(4)]
 
         # switch tool to convert a numeric value to string value
         self.switcher_type_name = {
@@ -95,27 +104,41 @@ class RR100ReachEnv(gym.Env):
         )  # or p.GUI (for test) or p.DIRECT (for train) for non-graphical version
 
         p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)
+        camera_target_position = [0, 0, 0.5]
+        camera_distance = 5
+        camera_yaw = 90
+        camera_pitch = -90
+        camera_roll = 0
+        self.view_matrix = p.computeViewMatrixFromYawPitchRoll(
+            camera_target_position,
+            camera_distance,
+            camera_yaw,
+            camera_pitch,
+            camera_roll,
+            2,
+        )
+        self.projection_matrix = p.computeProjectionMatrixFOV(
+            fov=40, aspect=1.7, nearVal=0.1, farVal=100
+        )
+        self.width, self.height = 1920, 1200
 
         self.if_render = False
         self.render_mode = render_mode
 
-        self.goal = [0, 0]
         self._init_simulation()
         self.previous_action = np.zeros(self.n_actions)
 
         self.debug_gui(self.position_space.low, self.position_space.high, [0, 0, 1])
-        self.debug_gui(
-            self.goal_spaces[GoalSpaceSize.SMALL].low,
-            self.goal_spaces[GoalSpaceSize.SMALL].high,
-            [1, 0, 0],
-        )
-        self.debug_gui(
-            self.goal_spaces[goal_space_size].low,
-            self.goal_spaces[goal_space_size].high,
-            [1, 0, 1],
-        )
-
-        self.total_episodes = 0
+        # self.debug_gui(
+        #     self.goal_spaces[GoalSpaceSize.SMALL].low,
+        #     self.goal_spaces[GoalSpaceSize.SMALL].high,
+        #     [1, 0, 0],
+        # )
+        # self.debug_gui(
+        #     self.goal_spaces[goal_space_size].low,
+        #     self.goal_spaces[goal_space_size].high,
+        #     [1, 0, 1],
+        # )
 
         # gym setup
         # self.goal = self._sample_goal()
@@ -159,17 +182,20 @@ class RR100ReachEnv(gym.Env):
             )
         print("=================================")
 
-    def get_pose_in_robot_frame(self, pose: np.ndarray):
+    def _get_position_in_robot_frame(self, position: np.ndarray):
         robot_pos = np.concatenate((self.robot_position, [0.0]))
-        robot_inv = p.invertTransform(
-            robot_pos, p.getQuaternionFromEuler([0, 0, self.robot_yaw])
-        )
-        pose_in_robot_frame = np.array(
-            p.multiplyTransforms(
-                robot_inv[0], robot_inv[1], pose, self.start_orientation
-            )[0]
-        )
-        return pose_in_robot_frame
+        return self._get_pose_in_frame(
+            [position, self.start_orientation],
+            [robot_pos, p.getQuaternionFromEuler([0, 0, self.robot_yaw])],
+        )[0]
+
+    def _get_pose_in_frame(self, pose: Iterable, frame: Iterable):
+        """
+        pose    : vec2 in the format [position : vec3, orientation: vec4]
+        frame   : vec2 in the format [position : vec3, orientation: vec4]
+        """
+        frame_inv = p.invertTransform(frame[0], frame[1])
+        return p.multiplyTransforms(frame_inv[0], frame_inv[1], pose[0], pose[1])
 
     def load_plane(self):
         self.plane_height = 0  # -0.85
@@ -199,8 +225,13 @@ class RR100ReachEnv(gym.Env):
 
         # load goal
         fullpath = os.path.join(get_urdf_path(), "my_sphere.urdf")
-        self.sphere = p.loadURDF(fullpath, useFixedBase=True)
+        self.sphere = p.loadURDF(
+            fullpath,
+            globalScaling=3,
+            useFixedBase=True,
+        )
         p.stepSimulation()
+        self.goal = [0, 0]
 
         # load panda
         self.load_robot()
@@ -220,12 +251,15 @@ class RR100ReachEnv(gym.Env):
         # print(f'Action : {action}')
         action = np.clip(action, self.action_space.low, self.action_space.high)
         self._set_action(action)
+        P_1 = self.robot_position.copy()
 
         # for i in range(240):
         for _ in range(int((1 / self.time_step) // self.robot_action_frequency)):
             p.stepSimulation()
 
         obs = self._get_obs()
+
+        self.total_traveled += np.linalg.norm(self.robot_position - P_1)
 
         reward, distance = self.reward()
         info = self._get_info(distance)
@@ -248,8 +282,16 @@ class RR100ReachEnv(gym.Env):
             self.action_space.seed(seed)
 
         # Reset robot
-        self.reset_robot()
+        self.reset_robot(self.should_reset_robot_pos)
         self.previous_action = np.zeros(self.n_actions)
+
+        self.total_traveled = 0.0
+        if not self.should_reset_robot_pos:
+            mobile_base_state = p.getLinkState(
+                self.robot_id, 0, computeLinkVelocity=False
+            )
+            self.robot_position = np.array(mobile_base_state[0])[:2]
+            self.initial_robot_pose = [mobile_base_state[0], mobile_base_state[1]]
 
         goal_space = self.goal_spaces[self.goal_space_size]
         self.goal = self._sample_goal(goal_space)
@@ -270,13 +312,18 @@ class RR100ReachEnv(gym.Env):
             return None
 
         if self.render_mode == "rgb_array":
-            # (width, height, rgbPixels, depthPixels, segmentationMaskBuffer)
-            return p.getCameraImage(640, 360)[2]
+            return p.getCameraImage(
+                self.width,
+                self.height,
+                self.view_matrix,
+                self.projection_matrix,
+                renderer=p.ER_BULLET_HARDWARE_OPENGL,
+            )[2]
 
     def reward(self):
         # Get goal position in robot's frame
-        goal = np.array([self.goal[0], self.goal[1], 0.0])
-        self.goal_robot_frame = self.get_pose_in_robot_frame(goal)[:2]
+        goal = np.array([*self.goal, 0.0])
+        self.goal_robot_frame = self._get_position_in_robot_frame(goal)[:2]
 
         reward = -np.linalg.norm(self.goal_robot_frame * self.error_bias)
 
@@ -365,16 +412,16 @@ class RR100ReachEnv(gym.Env):
             (
                 2 * self.wheel_base * math.cos(smoothed_action[1])
                 - side * self.steering_track * math.sin(smoothed_action[1])
-            )
+            ),
         )
         phi_o = math.atan2(
             (2 * self.wheel_base * math.sin(smoothed_action[1])),
             (
                 2 * self.wheel_base * math.cos(smoothed_action[1])
                 + side * self.steering_track * math.sin(smoothed_action[1])
-            )
+            ),
         )
-        R_steering_i = self.wheel_base * math.tan(np.pi/2 - abs(phi_i))
+        R_steering_i = self.wheel_base * math.tan(np.pi / 2 - abs(phi_i))
         R_steering_o = R_steering_i + self.steering_track
         R_steering_c = R_steering_i + (self.steering_track / 2)
 
@@ -384,18 +431,6 @@ class RR100ReachEnv(gym.Env):
 
         w_i = smoothed_action[0] * R_w_i / R_w_c
         w_o = smoothed_action[0] * R_w_o / R_w_c
-
-        # print(f"phi_i = {phi_i}")
-        # print(f"phi_o = {phi_o}")
-        # print(f"R_steering_c = {R_steering_c}")
-        # print(f"R_steering_i = {R_steering_i}")
-        # print(f"R_steering_o = {R_steering_o}")
-        # print(f"R_w_c = {R_w_c}")
-        # print(f"R_w_i = {R_w_i}")
-        # print(f"R_w_o = {R_w_o}")
-        # print(f"w_c = {smoothed_action[0]}")
-        # print(f"w_i = {w_i}")
-        # print(f"w_o = {w_o}")
 
         if smoothed_action[1] > 0:
             velocities = [w_i, w_o, w_i, w_o]
@@ -477,17 +512,39 @@ class RR100ReachEnv(gym.Env):
             [steering_states[0][1], steering_states[1][1]]
         )
 
-        mobile_base_orientation = np.array([self.robot_yaw])
         mobile_base_angular = np.array([yaw_velocity])
+
+        goal = self.goal
+        if not self.should_reset_robot_pos and self.should_retransform_to_local:
+            goal = self._get_pose_in_frame(
+                [np.concatenate((goal, [0.0])), self.start_orientation],
+                self.initial_robot_pose,
+            )[0]
+            robot_pose_in_initial = self._get_pose_in_frame(
+                [mobile_base_state[0], mobile_base_state[1]],
+                self.initial_robot_pose,
+            )
+            robot_velocity_in_initial = self._get_pose_in_frame(
+                [mobile_base_state[6], self.start_orientation],
+                [[0, 0, 0], self.initial_robot_pose[1]],
+            )
+            robot_position = np.array(robot_pose_in_initial[0][:2])
+            robot_velocity = np.array(robot_velocity_in_initial[0][:2])
+            robot_yaw = p.getEulerFromQuaternion(robot_pose_in_initial[1])[2]
+            mobile_base_orientation = np.array([robot_yaw])
+        else:
+            robot_position = self.robot_position.copy()
+            robot_velocity = self.robot_velocity.copy()
+            mobile_base_orientation = np.array([self.robot_yaw])
 
         obs = np.concatenate(
             (
-                self.robot_position.copy(),
-                self.goal,
+                robot_position,
+                goal[:2],
                 rr100_wheel_velocities,
                 rr100_steering_angles,
                 rr100_steering_velocities,
-                self.robot_velocity.copy(),
+                robot_velocity,
                 mobile_base_orientation,
                 mobile_base_angular,
             )
@@ -497,20 +554,40 @@ class RR100ReachEnv(gym.Env):
 
     def _get_info(self, distance):
         info = {
+            "goal": self.goal,
             "is_success": self._is_success(distance),
             "distance": distance,
+            "initial_distance": self.initial_distance,
+            "total_traveled": self.total_traveled,
         }
         return info
 
     def _sample_goal(self, goal_space):
         goal = np.zeros(2)
-        while np.linalg.norm(goal) < self.distance_threshold:
+        norm = np.linalg.norm(goal)
+        tries = 0
+        while norm < self.distance_threshold or not goal in self.position_space:
             goal = goal_space.sample()
+            if not self.should_reset_robot_pos and self.should_retransform_to_local:
+                goal_pose = p.multiplyTransforms(
+                    self.initial_robot_pose[0],
+                    self.initial_robot_pose[1],
+                    [*goal, 0.0],
+                    self.start_orientation,
+                )
+                goal = goal_pose[0][:2]
+                if tries >= 100:
+                    self.reset_robot(reset_position=True)
+                    tries = 0
+            norm = np.linalg.norm(goal)
+            tries += 1
 
+        return goal
+
+    def place_goal_debug(self, goal):
         p.resetBasePositionAndOrientation(
-            self.sphere, [goal[0], goal[1], 0.9], self.start_orientation
+            self.sphere, [goal[0], goal[1], 0.75], self.start_orientation
         )
-        return goal.copy()
 
     def _is_success(self, distance_error):
         return distance_error < self.distance_threshold
@@ -519,7 +596,7 @@ class RR100ReachEnv(gym.Env):
         self.ur_rr100_start_pos = [0, 0, 0]
         self.ur_rr100_start_orientation = self.start_orientation
 
-        path = os.path.join(get_urdf_path(), "RR100/rr100_ur.urdf")
+        path = os.path.join(get_urdf_path(), "RR100/rr100.urdf")
 
         self.robot_id = p.loadURDF(
             path,
@@ -604,18 +681,6 @@ class RR100ReachEnv(gym.Env):
                 ]
             )
 
-        # for joint in RR100ReachEnv.RR_VELOCITY_JOINTS:
-        #     joint_info = p.getJointInfo(self.robot_id, self.robot_joint_info[joint][0])
-        #     print(f"Wheel info : {joint_info}")
-        # for joint in RR100ReachEnv.RR_POSITION_JOINTS:
-        #     joint_info = p.getJointInfo(self.robot_id, self.robot_joint_info[joint][0])
-        #     print(f"Wheel info : {joint_info}")
-        # p.changeDynamics(
-        #     self.robot_id,
-        #     self.robot_joint_info[joint][0],
-        #     maxJointVelocity=self.robot_joint_info[joint][11 - 1],
-        # )
-
     def load_walls(self, min_x, max_x, min_y, max_y):
         path = os.path.join(
             get_urdf_path(),
@@ -675,11 +740,17 @@ class RR100ReachEnv(gym.Env):
                 targetVelocity=0.0,
             )
 
-    def reset_robot(self):
+    def reset_robot(self, reset_position):
         self.set_rr100_initial_joints_positions()
-        p.resetBasePositionAndOrientation(
-            self.robot_id, [0, 0, 0], self.start_orientation
-        )
+        if reset_position:
+            p.resetBasePositionAndOrientation(
+                self.robot_id, [0, 0, 0], self.start_orientation
+            )
+            self.initial_robot_pose = [
+                np.zeros(3),
+                self.start_orientation
+            ]
+            self.robot_position = np.zeros(2)
         p.stepSimulation()
 
     def set_gym_spaces_rr100(self):
@@ -761,9 +832,6 @@ class RR100ReachEnv(gym.Env):
         print("Observation space : ", self.observation_space)
 
     def debug_gui(self, low, high, color=[0, 0, 1]):
-        # low_array = self.pos_space.low
-        # high_array = self.pos_space.high
-
         low_array = low
         high_array = high
 
@@ -776,6 +844,16 @@ class RR100ReachEnv(gym.Env):
         p.addUserDebugLine(p2, p3, lineColorRGB=color, lineWidth=2.0, lifeTime=0)
         p.addUserDebugLine(p3, p4, lineColorRGB=color, lineWidth=2.0, lifeTime=0)
         p.addUserDebugLine(p4, p1, lineColorRGB=color, lineWidth=2.0, lifeTime=0)
+
+    @property
+    def goal(self):
+        return self._goal
+
+    @goal.setter
+    def goal(self, goal):
+        self._goal = np.array(goal)
+        self.initial_distance = np.linalg.norm(self._goal - self.robot_position)
+        self.place_goal_debug(goal)
 
     def close(self):
         p.disconnect()

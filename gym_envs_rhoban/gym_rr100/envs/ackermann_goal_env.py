@@ -548,7 +548,7 @@ class AckermannGoalEnv(GoalEnv):
         self.ur_rr100_start_pos = [0, 0, 0]
         self.ur_rr100_start_orientation = self.start_orientation
 
-        path = os.path.join(get_urdf_path(), "RR100/rr100_ur.urdf")
+        path = os.path.join(get_urdf_path(), "RR100/rr100.urdf")
 
         self.robot_id = p.loadURDF(
             path,

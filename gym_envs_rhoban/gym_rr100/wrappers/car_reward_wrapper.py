@@ -23,7 +23,7 @@ class CarRewardWrapper(RewardWrapper):
         try:
             goal_robot_frame = self.env.unwrapped.goal_robot_frame
             d = np.sum(np.abs(goal_robot_frame))
-            theta = abs(np.arctan2(goal_robot_frame[1], goal_robot_frame[0]))
+            theta = np.arctan2(goal_robot_frame[1], goal_robot_frame[0])
             
             return 0.01 * (-self.c1 * d**2 - self.c2 * (1 - np.cos(theta) / (d + 1)))
         except Exception:
