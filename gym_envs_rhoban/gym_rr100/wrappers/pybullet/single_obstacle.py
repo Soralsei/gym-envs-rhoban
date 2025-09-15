@@ -19,7 +19,7 @@ class SingleObstacleWrapper(Wrapper):
     Note: this wrapper assumes that the returned reward will not be overwritten (completely replaced) later by other wrappers.
     """
 
-    def __init__(self, env: gym.Env, resample_obstacle: bool = True):
+    def __init__(self, env: gym.Env, resample_obstacle: bool = True, initial_obstacle_position=None):
         super().__init__(env)
         self._observation_space = spaces.Box(
             low=np.finfo(np.float32).min,
@@ -27,7 +27,8 @@ class SingleObstacleWrapper(Wrapper):
             shape=(self.env.observation_space.shape[0] + 2,),  # type: ignore # Add 2 for the obstacle position
             dtype=np.float32,
         )
-        self.obstacle = [0, 0]
+        self.obstacle = initial_obstacle_position or [0., 0.]
+        self.place_obstacle(self.obstacle)  # type: ignore
         self.resample_obstacle = resample_obstacle
 
         obstacle_path = os.path.join(get_urdf_path(), "obstacle_sphere.urdf")
@@ -42,8 +43,7 @@ class SingleObstacleWrapper(Wrapper):
         obs, info = self.env.reset(**kwargs)
         if self.resample_obstacle:
             self.obstacle = self._sample_obstacle_position()
-        self.obstacle = self._sample_obstacle_position()
-        self.place_obstacle(self.obstacle)  # type: ignore
+            self.place_obstacle(self.obstacle)  # type: ignore
         obs = np.concatenate([obs, self.obstacle])
         return obs, info
 
