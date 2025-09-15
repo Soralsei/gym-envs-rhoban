@@ -18,20 +18,20 @@ class FanRewardWrapper(RewardWrapper):
     def reward(self, reward: float) -> float:
         """
         try:
-            y_offset = self.env.unwrapped.goal[1] - self.env.unwrapped.robot_position[1]
+            y_offset = self.env.unwrapped.goal[1] - self.env.unwrapped.pos_of_interest[1]
             y_offset = abs(y_offset)
             
             if y_offset <= self.safe_offset:
                 y_offset = 0.0
         except AttributeError:
-            w.warn("Missing attribute env.goal or env.robot_position, returning an unchanged reward")
+            w.warn("Missing attribute env.goal or env.pos_of_interest, returning an unchanged reward")
             return reward
 
         return reward - y_offset
         """
         
         goal_in_ur_base_frame = self.env.unwrapped.goal_in_ur_base_frame
-        # y_offset = self.env.unwrapped.goal[1] - self.env.unwrapped.robot_position[1]
+        # y_offset = self.env.unwrapped.goal[1] - self.env.unwrapped.pos_of_interest[1]
         # y_offset = abs(y_offset)
         
         xy = np.abs(goal_in_ur_base_frame[:2])

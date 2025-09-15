@@ -11,16 +11,16 @@
     <link name="base_footprint">
         <inertial>
             <origin rpy="0 0 0" xyz="0 0 0" />
-            <mass value=".1" />
-            <inertia ixx="0.010609" ixy="0" ixz="0" iyy="0.050409" iyz="0" izz="0.05865" />
+            <mass value="0.01" />
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
         </inertial>
     </link>
     <!-- Base link is the center of the robot's bottom plate -->
     <link name="base_link">
         <inertial>
             <origin rpy="0 0 0" xyz="0 0 0" />
-            <mass value=".1" />
-            <inertia ixx="0.010609" ixy="0" ixz="0" iyy="0.050409" iyz="0" izz="0.05865" />
+            <mass value="0.01" />
+            <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
         </inertial>
         <visual>
             <origin rpy="0 -1.570795 0" xyz="0.03 0 -0.1" />
@@ -28,8 +28,8 @@
                 <mesh filename="package://rr100_description/meshes/rr100.dae"
                     scale="0.001 0.001 0.001" />
             </geometry>
-            <material name="Gray">
-                <color rgba="0.7 0.7 0.7 1.0" />
+            <material name="gray">
+                <color rgba="0.7 0.7 0.7 1" />
             </material>
         </visual>
         <collision>
@@ -95,16 +95,16 @@
             <inertia ixx="4E-4" ixy="0" ixz="0" iyy="4E-4" iyz="0"
                 izz="4E-4" />
         </inertial>
-        <!-- <visual>
+        <visual>
             <origin rpy="-1.570795  0 0" xyz="0 0 0" />
             <geometry>
                 <cylinder length="0.095" radius="0.21" />
-                <mesh filename="../meshes/left_front_wheel.obj" scale="3.75 3.75 2.75"/>
+                <!-- <mesh filename="../meshes/left_front_wheel.obj" scale="3.75 3.75 2.75"/> -->
             </geometry>
-            <material name="black">
-                <color rgba="0 0 0 1" />
+            <material name="lighter-blue">
+                <color rgba="0.239 0.443 0.792 1" />
             </material>
-        </visual> -->
+        </visual>
         <collision>
             <origin rpy="1.570795 0 0" xyz="0 0 0" />
             <geometry>
@@ -115,7 +115,7 @@
             </material> -->
         </collision>
     </link>
-    <joint name="front_left_wheel" type="continuous">
+    <joint name="front_left_wheel_joint" type="continuous">
         <!-- <limit effort="10.0" velocity="3.14" /> -->
         <parent link="front_left_steering" />
         <child link="front_left_wheel_link" />
@@ -152,12 +152,6 @@
         <dynamics damping="0.7" />
     </joint>
     <link name="front_right_wheel_link">
-        <!-- <contact>
-            <lateral_friction value="1.0" />
-            <rolling_friction value="1.0" />
-            <stiffness value="30000" />
-            <damping value="30000" />
-        </contact> -->
         <inertial>
             <mass value="0.1" />
             <!-- <origin xyz="0 0 0" rpy="${M_PI/2}  0 0" />-->
@@ -165,16 +159,16 @@
             <inertia ixx="4E-4" ixy="0" ixz="0" iyy="4E-4" iyz="0"
                 izz="4E-4" />
         </inertial>
-        <!-- <visual>
+        <visual>
             <origin rpy="1.570795  0 0" xyz="0 0 0" />
             <geometry>
-                <mesh filename="../meshes/left_front_wheel.obj" scale="3.75 3.75 2.75"/>
+                <!-- <mesh filename="../meshes/left_front_wheel.obj" scale="3.75 3.75 2.75"/> -->
                 <cylinder length="0.095" radius="0.21" />
             </geometry>
-            <material name="black">
-                <color rgba="0 0 0 1" />
+            <material name="yellow">
+                <color rgba="0.71 0.57 0.04 1" />
             </material>
-        </visual> -->
+        </visual>
         <collision>
             <origin rpy="1.570795 0 0" xyz="0 0 0" />
             <geometry>
@@ -185,7 +179,7 @@
             </material> -->
         </collision>
     </link>
-    <joint name="front_right_wheel" type="continuous">
+    <joint name="front_right_wheel_joint" type="continuous">
         <parent link="front_right_steering" />
         <child link="front_right_wheel_link" />
         <origin rpy="0 0 0" xyz="0 -0.0 0" />
@@ -221,12 +215,6 @@
         <dynamics damping="0.7" />
     </joint>
     <link name="rear_left_wheel_link">
-        <!-- <contact>
-            <lateral_friction value="1.0" />
-            <rolling_friction value="1.0" />
-            <stiffness value="30000" />
-            <damping value="30000" />
-        </contact> -->
         <inertial>
             <mass value="0.1" />
             <!--         <origin xyz="0 0 0" rpy="${M_PI/2}  0 0" /> -->
@@ -234,16 +222,16 @@
             <inertia ixx="4E-4" ixy="0" ixz="0" iyy="4E-4" iyz="0"
                 izz="4E-4" />
         </inertial>
-        <!-- <visual>
-            <origin rpy="-1.570795  0 0" xyz="0 0 0" />
+        <visual>
+            <origin rpy="-1.570795 0 0" xyz="0 0 0" />
             <geometry>
                 <cylinder length="0.095" radius="0.21" />
-                <mesh filename="../meshes/left_front_wheel.obj" scale="3.75 3.75 2.75"/>
+                <!-- <mesh filename="../meshes/left_front_wheel.obj" scale="3.75 3.75 2.75"/> -->
             </geometry>
-            <material name="black">
-                <color rgba="0 0 0 1" />
+            <material name="lighter-blue">
+                <color rgba="0.239 0.443 0.792 1" />
             </material>
-        </visual> -->
+        </visual>
         <collision>
             <origin rpy="1.570795 0 0" xyz="0 0 0" />
             <geometry>
@@ -254,7 +242,7 @@
             </material> -->
         </collision>
     </link>
-    <joint name="rear_left_wheel" type="continuous">
+    <joint name="rear_left_wheel_joint" type="continuous">
         <parent link="rear_left_steering" />
         <child link="rear_left_wheel_link" />
         <origin rpy="0 0 0" xyz="0 0.0 0" />
@@ -273,10 +261,6 @@
         <inertial>
             <mass value="5.0" />
             <origin xyz="0 0.0 0" />
-            <!--<inertia
-      ixx="1.0" ixy="0" ixz="0"
-                 iyy="1.0" iyz="0"
-                 izz="1.0"/>-->
             <inertia ixx="0.008333333333333335" ixy="0" ixz="0" iyy="0.008333333333333335" iyz="0"
                 izz="0.008333333333333335" />
         </inertial>
@@ -290,40 +274,29 @@
         <dynamics damping="0.7" />
     </joint>
     <link name="rear_right_wheel_link">
-        <!-- <contact>
-            <lateral_friction value="1.0" />
-            <rolling_friction value="1.0" />
-            <stiffness value="30000" />
-            <damping value="30000" />
-        </contact> -->
         <inertial>
             <mass value="0.1" />
-            <!--         <origin xyz="0 0 0" rpy="${M_PI/2}  0 0" /> -->
             <origin rpy="0  0 0" xyz="0 0 0" />
             <inertia ixx="4E-4" ixy="0" ixz="0" iyy="4E-4" iyz="0"
                 izz="4E-4" />
         </inertial>
-        <!-- <visual>
+        <visual>
             <origin rpy="1.570795  0 0" xyz="0 0 0" />
             <geometry>
-                <mesh filename="../meshes/left_front_wheel.obj" scale="3.75 3.75 2.75"/>
                 <cylinder length="0.095" radius="0.21" />
             </geometry>
-            <material name="black">
-                <color rgba="0 0 0 1" />
+            <material name="yellow">
+                <color rgba="0.71 0.57 0.04 1" />
             </material>
-        </visual> -->
+        </visual>
         <collision>
             <origin rpy="1.570795 0 0" xyz="0 0 0" />
             <geometry>
                 <cylinder length="0.095" radius="0.21" />
             </geometry>
-            <!-- <material name="black">
-                <color rgba="0 0 0 1" />
-            </material> -->
         </collision>
     </link>
-    <joint name="rear_right_wheel" type="continuous">
+    <joint name="rear_right_wheel_joint" type="continuous">
         <parent link="rear_right_steering" />
         <child link="rear_right_wheel_link" />
         <origin rpy="0 0 0" xyz="0 -0.0 0" />

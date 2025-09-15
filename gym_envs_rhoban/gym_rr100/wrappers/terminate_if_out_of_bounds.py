@@ -13,7 +13,7 @@ class TerminateIfOutOfBounds(Wrapper):
     
     Requires these attributes in the wrapped environment
     - `position_space: gym.Space`
-    - `robot_position: np.ndarray` with the same shape as `position_space`
+    - `pos_of_interest: np.ndarray` with the same shape as `position_space`
     '''
     def __init__(self, env):
         super().__init__(env)
@@ -34,7 +34,7 @@ class TerminateIfOutOfBounds(Wrapper):
         # If the robot steps out of bounds, truncate the episode``
         try:
             pos_space: gym.Space = self.env.unwrapped.position_space
-            should_terminate = not pos_space.contains(self.env.unwrapped.robot_position)
+            should_terminate = not pos_space.contains(self.env.unwrapped.pos_of_interest)
             if should_terminate:
                 print("Terminating : robot out of bounds")
                 # Band-aid fix until I add prefix_wrapper and suffix_wrapper to experiment manager create_env

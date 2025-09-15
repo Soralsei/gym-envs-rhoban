@@ -46,7 +46,7 @@ class AckermannReachEnv(gym.Env):
         angular_velocity_limit: float = 1.0,
         angular_acceleration_limit: float = 3.0,
         error_bias: Iterable[float] = np.array([1.0, 1.0]),
-        should_load_walls: bool = True
+        should_load_walls: bool = True,
     ):
 
         self.use_ackermann = False
@@ -72,7 +72,7 @@ class AckermannReachEnv(gym.Env):
 
         self.linear_velocity_limit = linear_velocity_limit
         self.angular_velocity_limit = angular_velocity_limit
-        self.robot_velocity_limits = np.array(
+        self.robot_limits = np.array(
             [self.linear_velocity_limit, self.angular_velocity_limit]
         )
 
@@ -303,9 +303,9 @@ class AckermannReachEnv(gym.Env):
         assert action.shape == (self.n_actions,), "Action shape error"
 
         clipped_action_rr100 = np.clip(
-            action * self.robot_velocity_limits,
-            -self.robot_velocity_limits,
-            self.robot_velocity_limits,
+            action * self.robot_limits,
+            -self.robot_limits,
+            self.robot_limits,
         )
         # print(clipped_action_rr100)
         smoothed_action = self.limit_action(
@@ -408,12 +408,19 @@ class AckermannReachEnv(gym.Env):
         #     forces=self.steering_joint_forces,
         #     maxVelocities=self.steering_velocity_limits
         # )
-        for joint, position, force, velocity_limit in zip(self.steering_joint_ids, positions, self.steering_joint_forces, self.steering_velocity_limits):
+        for joint, position, force, velocity_limit in zip(
+            self.steering_joint_ids,
+            positions,
+            self.steering_joint_forces,
+            self.steering_velocity_limits,
+        ):
             p.setJointMotorControl2(
-                self.robot_id, joint, p.POSITION_CONTROL,
+                self.robot_id,
+                joint,
+                p.POSITION_CONTROL,
                 targetPosition=position,
                 force=force,
-                maxVelocity=velocity_limit
+                maxVelocity=velocity_limit,
             )
 
         self.previous_action = smoothed_action
@@ -556,7 +563,7 @@ class AckermannReachEnv(gym.Env):
         )
         self.steering_velocity_limits = np.array(
             [
-                self.robot_joint_info[joint][11-1]
+                self.robot_joint_info[joint][11 - 1]
                 for joint in AckermannReachEnv.RR_POSITION_JOINTS
             ]
         )
@@ -568,11 +575,11 @@ class AckermannReachEnv(gym.Env):
         # for joint in RR100ReachEnv.RR_POSITION_JOINTS:
         #     joint_info = p.getJointInfo(self.robot_id, self.robot_joint_info[joint][0])
         #     print(f"Wheel info : {joint_info}")
-            # p.changeDynamics(
-            #     self.robot_id,
-            #     self.robot_joint_info[joint][0],
-            #     maxJointVelocity=self.robot_joint_info[joint][11 - 1],
-            # )
+        # p.changeDynamics(
+        #     self.robot_id,
+        #     self.robot_joint_info[joint][0],
+        #     maxJointVelocity=self.robot_joint_info[joint][11 - 1],
+        # )
 
     def load_walls(self, min_x, max_x, min_y, max_y):
         path = os.path.join(
@@ -697,7 +704,7 @@ class AckermannReachEnv(gym.Env):
         self.position_space = spaces.Box(
             low=np.array([x_down, y_down], dtype=np.float64),
             high=np.array([x_up, y_up], dtype=np.float64),
-            dtype=np.float64
+            dtype=np.float64,
         )
 
         if self.should_load_walls:

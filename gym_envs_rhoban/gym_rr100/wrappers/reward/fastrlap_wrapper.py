@@ -22,7 +22,7 @@ class FastRLapWrapper(Wrapper):
         try:
             reward, timeout = self.reward()
             self._last_positions = np.roll(self._last_positions, -1, axis=0)
-            self._last_positions[-1] = self.env.unwrapped.robot_position
+            self._last_positions[-1] = self.env.unwrapped.pos_of_interest
         except AttributeError as e:
             w.warn(f"Missing attribute : {e}")
             timeout = False
@@ -37,10 +37,10 @@ class FastRLapWrapper(Wrapper):
         return observation, reward, terminated, truncated | timeout, info
 
     def reward(self):
-        # goal_to_robot = self.env.unwrapped.robot_position - self.env.unwrapped.goal
+        # goal_to_robot = self.env.unwrapped.pos_of_interest - self.env.unwrapped.goal
         # distance_to_goal = np.linalg.norm(goal_to_robot)
         
-        vector_to_goal = self.env.unwrapped.goal - self.env.unwrapped.robot_position
+        vector_to_goal = self.env.unwrapped.goal - self.env.unwrapped.pos_of_interest
         distance_to_goal = np.linalg.norm(vector_to_goal)
         
         normalized_vector = vector_to_goal / (distance_to_goal + 1e-6)
@@ -68,5 +68,5 @@ class FastRLapWrapper(Wrapper):
     @property
     def should_timeout(self):
         return np.linalg.norm(
-                self.env.unwrapped.robot_position - self._last_positions
+                self.env.unwrapped.pos_of_interest - self._last_positions
             ).max() < 1.0

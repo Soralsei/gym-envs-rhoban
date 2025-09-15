@@ -1,1 +1,1 @@
-from gym_envs_rhoban.gym_ur_rr.envs.ur_rr_env import UrRrReachEnv
+from gym_envs_rhoban.gym_ur_rr.envs.ur_rr_env import WholeBodyControlEnv, WholeBodyControlGoalEnv

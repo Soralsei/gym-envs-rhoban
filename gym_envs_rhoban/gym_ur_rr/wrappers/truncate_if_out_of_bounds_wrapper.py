@@ -10,7 +10,7 @@ class TruncateIfOutOfBoundsWrapper(Wrapper):
     
     Requires these attributes in the wrapped environment
     - `position_space: gym.Space`
-    - `robot_position: np.ndarray` with the same shape as `position_space`
+    - `pos_of_interest: np.ndarray` with the same shape as `position_space`
     
     This is a no-op if these conditions are not met
     '''
@@ -20,7 +20,7 @@ class TruncateIfOutOfBoundsWrapper(Wrapper):
         # If the robot steps out of bounds, truncate the episode``
         try:
             pos_space: gym.Space = self.env.unwrapped.position_space
-            truncated = not pos_space.contains(self.env.unwrapped.robot_position)
+            truncated = not pos_space.contains(self.env.unwrapped.pos_of_interest)
         except AttributeError:
             truncated = trunc
             

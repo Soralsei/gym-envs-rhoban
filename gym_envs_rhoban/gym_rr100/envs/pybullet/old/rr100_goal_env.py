@@ -2,7 +2,7 @@ from abc import abstractmethod
 from enum import IntEnum
 import math
 import os
-from typing import Any, Iterable, Union
+from typing import Any, Iterable, Union, Optional
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -163,16 +163,23 @@ class RR100ReachGoalEnv(GoalEnv):
         self.previous_action = np.zeros(self.n_actions)
 
         self.debug_gui(self.position_space.low, self.position_space.high, [0, 0, 1])
-        self.debug_gui(
-            self.goal_spaces[GoalSpaceSize.SMALL].low,
-            self.goal_spaces[GoalSpaceSize.SMALL].high,
-            [1, 0, 0],
+        
+        p.resetDebugVisualizerCamera(
+        cameraDistance=6.0,
+        cameraYaw=-90,
+        cameraPitch=-89,
+        cameraTargetPosition=[0, 0, 0],
         )
-        self.debug_gui(
-            self.goal_spaces[goal_space_size].low,
-            self.goal_spaces[goal_space_size].high,
-            [1, 0, 1],
-        )
+        # self.debug_gui(
+        #     self.goal_spaces[GoalSpaceSize.SMALL].low,
+        #     self.goal_spaces[GoalSpaceSize.SMALL].high,
+        #     [1, 0, 0],
+        # )
+        # self.debug_gui(
+        #     self.goal_spaces[goal_space_size].low,
+        #     self.goal_spaces[goal_space_size].high,
+        #     [1, 0, 1],
+        # )
 
         # gym setup
         # self.goal = self._sample_goal()
@@ -259,7 +266,12 @@ class RR100ReachGoalEnv(GoalEnv):
 
         # load goal
         fullpath = os.path.join(get_urdf_path(), "my_sphere.urdf")
-        self.sphere = p.loadURDF(fullpath, useFixedBase=True)
+        self.sphere = p.loadURDF(
+            fullpath,
+            basePosition=[0, 0, -5], # hide it at first
+            globalScaling=3,
+            useFixedBase=True,
+        )
         p.stepSimulation()
         self.goal = [0, 0]
 
@@ -793,11 +805,15 @@ class RR100ReachGoalEnv(GoalEnv):
             )
 
     def reset_robot(self, reset_position):
-        self.set_rr100_initial_joints_positions()
         if reset_position:
+            self.set_rr100_initial_joints_positions()
             p.resetBasePositionAndOrientation(
                 self.robot_id, [0, 0, 0], self.start_orientation
             )
+            self.initial_robot_pose = [
+                np.zeros(3),
+                self.start_orientation
+            ]
             self.robot_position = np.zeros(2)
         p.stepSimulation()
 
@@ -910,6 +926,24 @@ class RR100ReachGoalEnv(GoalEnv):
     @property
     def goal(self):
         return self._goal
+    
+    def manual_set_goal(self, goal: np.ndarray, retransform_to_local: bool = False, initial_pose: Optional[Iterable] = None) -> None:
+        if not isinstance(goal, np.ndarray):
+            goal = np.array(goal)
+        assert goal.shape == (2,), "Goal shape error"
+        assert self.position_space.contains(goal), "Goal out of bounds"
+        
+        if retransform_to_local:
+            initial_pose = initial_pose or self.initial_robot_pose
+            goal_pose = p.multiplyTransforms(
+                initial_pose[0],
+                initial_pose[1],
+                [*goal, 0.0],
+                self.start_orientation,
+            )
+            goal = goal_pose[0][:2]
+            
+        self.goal = goal
 
     @goal.setter
     def goal(self, goal):

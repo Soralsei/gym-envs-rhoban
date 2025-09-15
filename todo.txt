@@ -1,0 +1,6 @@
+(For pose reaching)
+Update :
+- _get_info
+- _sample_goal
+- _reset_robot (also reset current pose)
+- _reset
