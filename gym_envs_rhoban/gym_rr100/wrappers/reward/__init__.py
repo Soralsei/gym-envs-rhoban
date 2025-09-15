@@ -1,1 +1,2 @@
 from .fan_reward_wrapper import FanRewardWrapper
+from .turning_radius_reward import TurningRadiusReward
