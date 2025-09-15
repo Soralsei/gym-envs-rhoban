@@ -29,7 +29,6 @@ class BaseEnv(gym.Env, ABC):
     # basic methods
     # -------------------------
     def step(self, action):
-        print("Calling step in BaseEnv")
         self._set_action(action)
 
         self._step_simulation()

@@ -45,6 +45,7 @@ class RR100ReachEnv(PyBulletBaseEnv):
         should_retransform_to_local: bool = False,
         physics_timestep: float = 1 / 240.0,
         n_substeps: int = 20,
+        reach_bonus: float = 0.0,
     ):
         super().__init__(
             n_actions=n_actions,
@@ -53,6 +54,7 @@ class RR100ReachEnv(PyBulletBaseEnv):
             physics_step=physics_timestep,
             n_substeps=n_substeps,
         )
+        self.reach_bonus = reach_bonus
         self.should_reset_robot_pos = should_reset_robot_position
         self.should_retransform_to_local = should_retransform_to_local
 
@@ -172,7 +174,11 @@ class RR100ReachEnv(PyBulletBaseEnv):
         )
 
     def _reward(self) -> float:
-        return -np.linalg.norm((self._goal - self.pos_of_interest) * self.error_bias) # type: ignore
+        delta_pos = self._goal - self.pos_of_interest
+        reward = -np.linalg.norm(delta_pos * self.error_bias)
+        if np.linalg.norm(delta_pos) < self.distance_threshold:
+            reward += self.reach_bonus
+        return reward # type: ignore
 
     def _set_action(self, action):
         # action is the joint velocity
