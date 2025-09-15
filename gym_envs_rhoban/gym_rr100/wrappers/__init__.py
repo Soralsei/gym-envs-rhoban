@@ -1,3 +1,1 @@
 from .terminate_if_out_of_bounds import TerminateIfOutOfBounds
-from .pybullet import SingleObstacleWrapper
-from .reward import *
