@@ -44,6 +44,12 @@ class SingleObstacleWrapper(Wrapper):
         if self.resample_obstacle:
             self.obstacle = self._sample_obstacle_position()
             self.place_obstacle(self.obstacle)  # type: ignore
+        else:
+            print("Warning: obstacle too close to goal, resampling")
+            # Ensure obstacle is not too close to goal
+            while np.linalg.norm(self.env.unwrapped.goal, self.obstacle) < 0.4: # type: ignore
+                self.env.unwrapped._reset(**kwargs) # type: ignore 
+                
         obs = np.concatenate([obs, self.obstacle])
         return obs, info
 
@@ -76,7 +82,7 @@ class SingleObstacleWrapper(Wrapper):
         obstacle_max_dist = 1.5  # meters
 
         sample_space = spaces.Box(
-            low=np.array([safety_distance, 0.0]),
+            low=np.array([0.4, 0.0]),
             high=np.array([obstacle_max_dist, 2 * np.pi]),
         )  # Polar coordinates
 
