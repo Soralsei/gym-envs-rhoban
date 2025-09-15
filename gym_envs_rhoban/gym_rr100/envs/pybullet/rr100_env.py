@@ -101,7 +101,9 @@ class RR100ReachEnv(PyBulletBaseEnv):
         )
 
     def _get_position_in_robot_frame(self, position: np.ndarray):
-        robot_pos = self.pos_of_interest
+        robot_pos = [*self.pos_of_interest, 0.0]
+        if position.shape == (2,):
+            position = np.array([position[0], position[1], 0.0]) # if 2D, add z=0
         return self._get_pose_in_frame(
             [position, self.start_orientation],
             [robot_pos, p.getQuaternionFromEuler([0, 0, self.robot_yaw])],
@@ -269,7 +271,7 @@ class RR100ReachEnv(PyBulletBaseEnv):
         goal = self.goal
         if not self.should_reset_robot_pos and self.should_retransform_to_local:
             goal = self._get_pose_in_frame(
-                [np.concatenate((goal, [0.0])), self.start_orientation],
+                [[*goal, 0.0], self.start_orientation],
                 self.initial_robot_pose,
             )[0][:2]
             robot_pose_in_initial = self._get_pose_in_frame(

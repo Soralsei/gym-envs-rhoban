@@ -37,6 +37,8 @@ class SingleObstacleWrapper(Wrapper):
         )
         
         self.obstacle = initial_obstacle_position or [0., 0.]
+        if initial_obstacle_position is None:
+            self.obstacle = self._sample_obstacle_position()
         self.place_obstacle(self.obstacle)  # type: ignore
         self.resample_obstacle = resample_obstacle
 
@@ -46,10 +48,14 @@ class SingleObstacleWrapper(Wrapper):
             self.obstacle = self._sample_obstacle_position()
             self.place_obstacle(self.obstacle)  # type: ignore
         else:
-            print("Warning: obstacle too close to goal, resampling")
             # Ensure obstacle is not too close to goal
-            while np.linalg.norm(self.env.unwrapped.goal, self.obstacle) < 0.4: # type: ignore
-                self.env.unwrapped._reset(**kwargs) # type: ignore 
+            while np.linalg.norm(self.env.unwrapped.goal - self.obstacle) < 0.4: # type: ignore
+                print("Warning: obstacle too close to goal, resampling")
+                options = {}
+                if kwargs is not None:
+                    options = kwargs.get("options") or {}
+                print("Options:", options)
+                self.env.unwrapped._reset(options=options) # type: ignore 
                 
         obs = np.concatenate([obs, self.obstacle])
         return obs, info

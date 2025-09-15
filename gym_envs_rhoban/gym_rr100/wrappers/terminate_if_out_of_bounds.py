@@ -36,7 +36,7 @@ class TerminateIfOutOfBounds(Wrapper):
             pos_space: gym.Space = self.env.unwrapped.position_space
             should_terminate = not pos_space.contains(self.env.unwrapped.pos_of_interest)
             if should_terminate:
-                print("Terminating : robot out of bounds")
+                print(f"Terminating : robot out of bounds, pos {self.env.unwrapped.pos_of_interest}, bounds {pos_space}")
                 # Band-aid fix until I add prefix_wrapper and suffix_wrapper to experiment manager create_env
                 # If this is not set, evaluate_policy ignores our "terminated" signal and waits for Monitor
                 # to signal episode end (truncation or target reaching)
