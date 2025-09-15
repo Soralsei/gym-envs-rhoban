@@ -27,9 +27,6 @@ class SingleObstacleWrapper(Wrapper):
             shape=(self.env.observation_space.shape[0] + 2,),  # type: ignore # Add 2 for the obstacle position
             dtype=np.float32,
         )
-        self.obstacle = initial_obstacle_position or [0., 0.]
-        self.place_obstacle(self.obstacle)  # type: ignore
-        self.resample_obstacle = resample_obstacle
 
         obstacle_path = os.path.join(get_urdf_path(), "obstacle_sphere.urdf")
         self.obstacle_sphere = p.loadURDF(
@@ -38,6 +35,10 @@ class SingleObstacleWrapper(Wrapper):
             globalScaling=1,
             useFixedBase=True,
         )
+        
+        self.obstacle = initial_obstacle_position or [0., 0.]
+        self.place_obstacle(self.obstacle)  # type: ignore
+        self.resample_obstacle = resample_obstacle
 
     def reset(self, **kwargs):
         obs, info = self.env.reset(**kwargs)
