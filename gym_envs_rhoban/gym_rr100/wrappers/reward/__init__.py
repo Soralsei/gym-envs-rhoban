@@ -1,0 +1,1 @@
+from .fan_reward_wrapper import FanRewardWrapper
