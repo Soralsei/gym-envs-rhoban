@@ -1,1 +1,1 @@
-from .single_obstacle import SingleObstacleWrapper
+from .single_obstacle import SingleObstacleWrapper, SingleObstacleDictWrapper

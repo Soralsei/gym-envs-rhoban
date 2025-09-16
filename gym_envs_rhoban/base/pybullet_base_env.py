@@ -23,7 +23,7 @@ class PyBulletBaseEnv(BaseEnv):
         render_mode="human",
         agent_action_frequency=40,
         physics_step: float = 1 / 240,
-        n_substeps: int = 20,
+        n_substeps: int = 10,
         gravity_constant: float = -9.81,
     ):
         super().__init__(n_actions, render_mode, agent_action_frequency)

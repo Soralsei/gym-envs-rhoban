@@ -26,7 +26,7 @@ class AckermannReachEnv(RR100ReachEnv):
         should_reset_robot_position: bool = True,
         should_retransform_to_local: bool = False,
         physics_timestep: float = 1 / 240.0,
-        n_substeps: int = 20,
+        n_substeps: int = 1,
     ):
         self.linear_velocity_limit = linear_velocity_limit
         self.angular_velocity_limit = angular_velocity_limit
@@ -185,5 +185,5 @@ class AckermannReachEnv(RR100ReachEnv):
         self.previous_action = smoothed_action
 
 
-class AckermannGoalReachEnv(AckermannReachEnv, GoalPositionMixin):
+class AckermannGoalReachEnv(GoalPositionMixin, AckermannReachEnv):
     pass

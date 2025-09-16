@@ -44,8 +44,10 @@ class RR100ReachEnv(PyBulletBaseEnv):
         should_reset_robot_position: bool = True,
         should_retransform_to_local: bool = False,
         physics_timestep: float = 1 / 240.0,
-        n_substeps: int = 20,
+        n_substeps: int = 1,
         reach_bonus: float = 0.0,
+        resample_goal: bool = True,
+        initial_goal: Optional[np.ndarray] = None,
     ):
         super().__init__(
             n_actions=n_actions,
@@ -57,6 +59,7 @@ class RR100ReachEnv(PyBulletBaseEnv):
         self.reach_bonus = reach_bonus
         self.should_reset_robot_pos = should_reset_robot_position
         self.should_retransform_to_local = should_retransform_to_local
+        self.resample_goal = resample_goal
 
         self.total_episodes = 0
         self.initial_distance = 0.0
@@ -91,6 +94,11 @@ class RR100ReachEnv(PyBulletBaseEnv):
         self._init_camera_matrices()
 
         self._init_simulation()
+
+        if not resample_goal:
+            self.goal = initial_goal if initial_goal is not None else self._sample_goal(
+                self.goal_spaces[self.goal_space_size]
+            )
 
         self.debug_gui(self.position_space.low, self.position_space.high, [0, 0, 1])
         p.resetDebugVisualizerCamera(
@@ -171,9 +179,10 @@ class RR100ReachEnv(PyBulletBaseEnv):
             self.initial_robot_pose = [mobile_base_state[0], mobile_base_state[1]]
 
         goal_space = self.goal_spaces[self.goal_space_size]
-        self.goal = self._sample_goal(
-            goal_space, allow_out_of_bounds=options.get("allow_out_of_bounds", False)
-        )
+        if self.resample_goal or options.get("resample_goal", False):
+            self.goal = self._sample_goal(
+                goal_space, allow_out_of_bounds=options.get("allow_out_of_bounds", False)
+            )
 
     def _reward(self) -> float:
         delta_pos = self._goal - self.pos_of_interest
