@@ -42,10 +42,7 @@ class SingleObstacleWrapper(Wrapper):
             useFixedBase=True,
         )
 
-        self.safety_distance = self.env.unwrapped.wheel_base + self.env.unwrapped.wheel_radius + 0.4 # type: ignore
-        self.obstacle = initial_obstacle_position or [0.0, 0.0]
-        # if initial_obstacle_position is None:
-        #     self.obstacle = self._sample_obstacle_position()
+        self.obstacle = initial_obstacle_position or self._sample_obstacle_position()
         self.place_obstacle(self.obstacle)  # type: ignore
         self.resample_obstacle = resample_obstacle
 
@@ -56,7 +53,9 @@ class SingleObstacleWrapper(Wrapper):
             self.place_obstacle(self.obstacle)  # type: ignore
         else:
             # Ensure obstacle is not too close to goal
-            while np.linalg.norm(self.env.unwrapped.goal - self.obstacle) < self.safety_distance:  # type: ignore
+            safety_distance = self.env.unwrapped.wheel_base + self.env.unwrapped.wheel_radius + 0.3  # type: ignore
+            print(f"Safety distance: {safety_distance}")
+            while np.linalg.norm(self.env.unwrapped.goal - self.obstacle) < safety_distance:  # type: ignore
                 print("Warning: obstacle too close to goal, resampling")
                 options = {}
                 if kwargs is not None:
@@ -91,12 +90,12 @@ class SingleObstacleWrapper(Wrapper):
     def _sample_obstacle_position(self):
         obstacle = np.zeros(2)
         safety_distance = (
-            self.env.unwrapped.wheel_base + self.env.unwrapped.wheel_radius + 0.4  # type: ignore
+            self.env.unwrapped.wheel_base + self.env.unwrapped.wheel_radius + 0.3  # type: ignore
         )
         obstacle_max_dist = 1.5  # meters
 
         sample_space = spaces.Box(
-            low=np.array([0.4, 0.0]),
+            low=np.array([0.3, 0.0]),
             high=np.array([obstacle_max_dist, 2 * np.pi]),
         )  # Polar coordinates
 
@@ -159,9 +158,7 @@ class SingleObstacleDictWrapper(Wrapper):
             useFixedBase=True,
         )
 
-        self.obstacle = initial_obstacle_position or [0.0, 0.0]
-        # if initial_obstacle_position is None:
-        #     self.obstacle = self._sample_obstacle_position()
+        self.obstacle = initial_obstacle_position or self._sample_obstacle_position()
         self.place_obstacle(self.obstacle)  # type: ignore
         print("Obstacle ", self.obstacle)
         self.resample_obstacle = resample_obstacle
@@ -173,13 +170,13 @@ class SingleObstacleDictWrapper(Wrapper):
             self.place_obstacle(self.obstacle)  # type: ignore
         else:
             # Ensure obstacle is not too close to goal
-            safety_distance = self.env.unwrapped.wheel_base + self.env.unwrapped.wheel_radius + 0.4  # type: ignore
+            safety_distance = self.env.unwrapped.wheel_base + self.env.unwrapped.wheel_radius + 0.3  # type: ignore
+            print(f"Safety distance: {safety_distance}")
             while np.linalg.norm(self.env.unwrapped.goal - self.obstacle) < safety_distance:  # type: ignore
                 print("Warning: obstacle too close to goal, resampling")
                 options = {}
                 if kwargs is not None:
                     options = kwargs.get("options") or {}
-                print("Options:", options)
                 self.env.unwrapped._reset(options=options)  # type: ignore
         print("Obstacle ", self.obstacle)
         obs["observation"] = np.concatenate([obs["observation"], self.obstacle])
@@ -209,12 +206,12 @@ class SingleObstacleDictWrapper(Wrapper):
     def _sample_obstacle_position(self):
         obstacle = np.zeros(2)
         safety_distance = (
-            self.env.unwrapped.wheel_base + self.env.unwrapped.wheel_radius + 0.4  # type: ignore
+            self.env.unwrapped.wheel_base + self.env.unwrapped.wheel_radius + 0.3  # type: ignore
         )
         obstacle_max_dist = 1.5  # meters
 
         sample_space = spaces.Box(
-            low=np.array([0.4, 0.0]),
+            low=np.array([0.3, 0.0]),
             high=np.array([obstacle_max_dist, 2 * np.pi]),
         )  # Polar coordinates
 
