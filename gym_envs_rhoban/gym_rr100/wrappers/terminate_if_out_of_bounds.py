@@ -30,11 +30,15 @@ class TerminateIfOutOfBounds(Wrapper):
     def step(self, action):
         self.len += 1
         obs, reward, terminated, truncated, info = super().step(action)
-        self.rewards.append(reward)
         # If the robot steps out of bounds, truncate the episode``
         try:
             pos_space: gym.Space = self.env.unwrapped.position_space
             should_terminate = not pos_space.contains(self.env.unwrapped.pos_of_interest)
+
+            if should_terminate:
+                reward -= 100.0
+                
+            self.rewards.append(reward)
             if should_terminate:
                 print(f"Terminating : robot out of bounds, pos {self.env.unwrapped.pos_of_interest}, bounds {pos_space}")
                 # Band-aid fix until I add prefix_wrapper and suffix_wrapper to experiment manager create_env
