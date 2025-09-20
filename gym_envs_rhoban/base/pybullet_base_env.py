@@ -22,14 +22,16 @@ class PyBulletBaseEnv(BaseEnv):
         n_actions: int,
         render_mode="human",
         agent_action_frequency=40,
-        physics_step: float = 1 / 240,
-        n_substeps: int = 10,
+        physics_step: float = 1 / 500,
+        n_substeps: int = 2,
+        num_solver_iterations: int = 150,
         gravity_constant: float = -9.81,
     ):
         super().__init__(n_actions, render_mode, agent_action_frequency)
 
         self.physics_step = physics_step
         self.n_substeps = n_substeps
+        self.num_solver_iterations = num_solver_iterations
         self.gravity_constant = gravity_constant
 
         # connect bullet
@@ -47,7 +49,14 @@ class PyBulletBaseEnv(BaseEnv):
 
         p.setAdditionalSearchPath(pd.getDataPath())
         p.setTimeStep(self.physics_step)
-        p.setPhysicsEngineParameter(numSubSteps=self.n_substeps)
+        p.setPhysicsEngineParameter(
+            numSubSteps=self.n_substeps,
+            numSolverIterations=self.num_solver_iterations,
+            solverResidualThreshold=1e-6,
+            contactERP=0.2,
+            frictionERP=0.2,
+            contactSlop=0.0005,
+        )
 
         p.setGravity(0, 0, self.gravity_constant)
 

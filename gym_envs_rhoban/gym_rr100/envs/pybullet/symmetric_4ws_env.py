@@ -116,8 +116,8 @@ class Symmetric4WSGoalPoseEnv(GoalPoseMixin, Symmetric4WSReachEnv):
         should_load_walls: bool = True,
         should_reset_robot_position: bool = True,
         should_retransform_to_local: bool = False,
-        physics_timestep: float = 1 / 240,
-        n_substeps: int = 20,
+        physics_timestep: float = 1 / 500,
+        n_substeps: int = 2,
     ):
         self.pose_of_interest = np.zeros((3,))
         self.angle_threshold = angle_threshold

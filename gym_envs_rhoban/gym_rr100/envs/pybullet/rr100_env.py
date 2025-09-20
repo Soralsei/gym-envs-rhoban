@@ -38,13 +38,13 @@ class RR100ReachEnv(PyBulletBaseEnv):
         distance_threshold: float = 0.10,
         agent_action_frequency: int = 40,
         wheel_acceleration_limit: float = 2 * np.pi,
-        steering_acceleration_limit: float = np.pi / 6,
+        steering_acceleration_limit: float = np.pi / 3,
         error_bias: Iterable[float] = np.array([1.0, 1.0]),
         should_load_walls: bool = True,
         should_reset_robot_position: bool = True,
         should_retransform_to_local: bool = False,
-        physics_timestep: float = 1 / 240.0,
-        n_substeps: int = 1,
+        physics_timestep: float = 1 / 500.0,
+        n_substeps: int = 2,
         reach_bonus: float = 0.0,
         resample_goal: bool = True,
         initial_goal: Optional[np.ndarray] = None,
@@ -96,11 +96,19 @@ class RR100ReachEnv(PyBulletBaseEnv):
         self._init_simulation()
 
         if not resample_goal:
-            self.goal = initial_goal if initial_goal is not None else self._sample_goal(
-                self.goal_spaces[self.goal_space_size]
+            self.goal = (
+                initial_goal
+                if initial_goal is not None
+                else self._sample_goal(self.goal_spaces[self.goal_space_size])
             )
 
         self.debug_gui(self.position_space.low, self.position_space.high, [0, 0, 1])
+        self.debug_gui(
+            self.goal_spaces[self.goal_space_size].low,
+            self.goal_spaces[self.goal_space_size].high,
+            [1, 0, 0],
+        )
+
         p.resetDebugVisualizerCamera(
             cameraDistance=6.0,
             cameraYaw=-90,
@@ -111,7 +119,7 @@ class RR100ReachEnv(PyBulletBaseEnv):
     def _get_position_in_robot_frame(self, position: np.ndarray):
         robot_pos = [*self.pos_of_interest, 0.0]
         if position.shape == (2,):
-            position = np.array([position[0], position[1], 0.0]) # if 2D, add z=0
+            position = np.array([position[0], position[1], 0.0])  # if 2D, add z=0
         return self._get_pose_in_frame(
             [position, self.start_orientation],
             [robot_pos, p.getQuaternionFromEuler([0, 0, self.robot_yaw])],
@@ -181,7 +189,8 @@ class RR100ReachEnv(PyBulletBaseEnv):
         goal_space = self.goal_spaces[self.goal_space_size]
         if self.resample_goal or options.get("resample_goal", False):
             self.goal = self._sample_goal(
-                goal_space, allow_out_of_bounds=options.get("allow_out_of_bounds", False)
+                goal_space,
+                allow_out_of_bounds=options.get("allow_out_of_bounds", False),
             )
 
     def _reward(self) -> float:
@@ -189,11 +198,11 @@ class RR100ReachEnv(PyBulletBaseEnv):
         reward = -np.linalg.norm(delta_pos * self.error_bias)
         if np.linalg.norm(delta_pos) < self.distance_threshold:
             reward += self.reach_bonus
-        return reward # type: ignore
+        return reward  # type: ignore
 
     def _set_action(self, action):
         # action is the joint velocity
-        action = np.clip(action, self.action_space.low, self.action_space.high) # type: ignore
+        action = np.clip(action, self.action_space.low, self.action_space.high)  # type: ignore
 
         scaled_action = np.clip(
             action * self.robot_limits,
@@ -356,7 +365,7 @@ class RR100ReachEnv(PyBulletBaseEnv):
         )
 
     def _is_terminal(self) -> bool:
-        return self.current_distance < self.distance_threshold #type: ignore
+        return self.current_distance < self.distance_threshold  # type: ignore
 
     def _load_robot(self):
         path = os.path.join(get_urdf_path(), "RR100/rr100.urdf")
@@ -366,7 +375,7 @@ class RR100ReachEnv(PyBulletBaseEnv):
             basePosition=[0, 0, 0],
             baseOrientation=self.start_orientation,
             useFixedBase=False,
-            flags=p.URDF_USE_INERTIA_FROM_FILE | p.URDF_USE_IMPLICIT_CYLINDER,
+            flags=p.URDF_USE_INERTIA_FROM_FILE #| p.URDF_USE_IMPLICIT_CYLINDER,
         )
 
         self.ur_rr100_num_joints = p.getNumJoints(self.robot_id)  # 26 joints
@@ -382,6 +391,7 @@ class RR100ReachEnv(PyBulletBaseEnv):
             print(
                 f"Joint: {joint_name}/{joint_info[0]}, joint type: {RR100ReachEnv.JOINT_TYPE_STR[joint_info[1]]}, limits: {(joint_info[7], joint_info[8])}"
             )
+
         self.wheel_joint_forces = [
             self.robot_joint_info[joint][10 - 1]
             for joint in RR100ReachEnv.RR_VELOCITY_JOINTS
@@ -435,6 +445,16 @@ class RR100ReachEnv(PyBulletBaseEnv):
             ]
         )
         self._set_initial_joints_positions()
+        # p.changeDynamics(self.robot_id, -1, linearDamping=0.1, angularDamping=0.1)
+        for joint in RR100ReachEnv.RR_VELOCITY_JOINTS:
+            p.changeDynamics(
+                self.robot_id,
+                self.robot_joint_info[joint][0],
+                # lateralFriction=1.2,
+                # rollingFriction=0.01,
+                # spinningFriction=0.01,
+                frictionAnchor=True,
+            )
 
     def _load_walls(self, min_x, max_x, min_y, max_y):
         path = os.path.join(
@@ -517,7 +537,8 @@ class RR100ReachEnv(PyBulletBaseEnv):
         x_down = -2
         x_up = 2
 
-        y_down = -2
+        y_down = 0.8
+        # y_down = -2
         y_up = 2
 
         # Smaller goal space for training, for better generalization evaluation

@@ -25,7 +25,7 @@ class AckermannReachEnv(RR100ReachEnv):
         should_load_walls: bool = True,
         should_reset_robot_position: bool = True,
         should_retransform_to_local: bool = False,
-        physics_timestep: float = 1 / 240.0,
+        physics_timestep: float = 1 / 500.0,
         n_substeps: int = 1,
     ):
         self.linear_velocity_limit = linear_velocity_limit
@@ -164,7 +164,9 @@ class AckermannReachEnv(RR100ReachEnv):
             p.POSITION_CONTROL,
             targetPositions=positions,
             forces=self.steering_joint_forces,
-            # maxVelocities=self.steering_velocity_limits
+            # maxVelocities=self.steering_velocity_limits,
+            positionGains=[0.1] * 4,
+            # velocityGains=[0.5] * 4,
         )
         # for joint, position, force, velocity_limit in zip(
         #     self.steering_joint_ids,

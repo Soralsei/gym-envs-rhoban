@@ -16,7 +16,7 @@
 				<mesh filename="meshes/sphere.obj" scale="0.2 0.2 0.5"/>      
       </geometry>
       <material name="black">
-        <color rgba="0 0 0 1"/>
+        <color rgba="0 0 1 1"/>
       </material>
     </collision>
   </link>
